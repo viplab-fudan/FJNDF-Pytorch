@@ -68,7 +68,7 @@ class ClassMapper:
         
         try:
             # Use importlib to load the module
-            module = importlib.import_module(f'pyiqa.archs.{file_path.stem}')
+            module = importlib.import_module(f'pyjnd.archs.{file_path.stem}')
             # Get all classes in the module
             classes_in_module = inspect.getmembers(module, inspect.isclass)
 
@@ -155,7 +155,7 @@ def build_network(opt, **kwargs):
             class_mapper.refresh()
             file_name = class_mapper.get_file_for_class(network_type)
 
-        importlib.import_module(f'pyiqa.models.{file_name}')
+        importlib.import_module(f'pyjnd.models.{file_name}')
     
     net = MODEL_REGISTRY.get(network_type)(**opt)
     logger.info(f'Network [{net.__class__.__name__}] is created.')

@@ -41,5 +41,5 @@ For detailed results, please refer to
 * [`mcl_jci_dataset_1080p/result.md`](mcl_jci_dataset_1080p/result.md)
 
 For detailed results of each video, you could download corresponding csv file from
-  * **URL:** [https://pan.baidu.com/s/1atA9BbX6FNoQDIiuxGRIXQ?pwd=1224](https://pan.baidu.com/s/1atA9BbX6FNoQDIiuxGRIXQ?pwd=1224)
+  * **URL:** [https://pan.baidu.com/s/1itaDTTeSkgUtnzcZWefCNA?pwd=1224](https://pan.baidu.com/s/1itaDTTeSkgUtnzcZWefCNA?pwd=1224)
   * **Extraction code:** `1224`

@@ -6,9 +6,7 @@ Each CSV must have the following columns:
   video, metric, BD-Rate(%), BD-PSNR(dB)
 
 The script processes rows where the 'video' column is 'ALL' to get the average results.
-It then extracts the BD-Rate for each filter-method/encoder/metric combination, rounds it
-to two decimal places, and prints a Markdown table for each encoder in a predefined order.
-An 'all' row showing the average BD-Rate across all metrics is added to each table.
+The methods are sorted by their average BD-Rate across all metrics (in the 'all' column).
 
 Usage:
     python parse_csv_to_md.py /path/to/root_directory
@@ -69,14 +67,15 @@ def collect_results(root_dir):
 
 def print_markdown_tables(df):
     """
-    Groups results by a custom encoder order, adds an 'all' metric row,
-    and prints a Markdown table for each encoder with a custom metric order.
+    Groups results by encoder, transposes the data so methods are rows and
+    metrics are columns, adds an 'all' column with the average BD-Rate,
+    sorts methods by the 'all' column, and prints a Markdown table.
     """
-    # Define the desired custom order for metrics (rows) and encoders (tables)
+    # Define the desired custom order for metrics (columns) and encoders (tables)
     metric_order = ['psnr', 'psnr_hvsm', 'ssim', 'ms_ssim', 'vmaf', 'vmaf_neg']
     encoder_order = ['x264', 'x265', 'aomenc', 'vvenc']
 
-    # --- NEW: Loop through the predefined encoder order ---
+    # --- Loop through the predefined encoder order ---
     for encoder in encoder_order:
         # Select data for the current encoder
         enc_df = df[df['encoder'] == encoder]
@@ -86,24 +85,24 @@ def print_markdown_tables(df):
             continue
 
         print(f"## {encoder}\n")
-        
-        # Create a pivot table for the current encoder's data
+
+        # Methods are now rows (index), metrics are columns
         pivot = enc_df.pivot_table(
-            index='metric',
-            columns='method',
+            index='method',
+            columns='metric',
             values='bd_rate'
         )
         
-        # Reorder the metric rows based on the custom list
-        present_metrics_in_order = [m for m in metric_order if m in pivot.index]
-        other_metrics = sorted([m for m in pivot.index if m not in present_metrics_in_order])
+        present_metrics_in_order = [m for m in metric_order if m in pivot.columns]
+        other_metrics = sorted([m for m in pivot.columns if m not in present_metrics_in_order])
         final_metric_order = present_metrics_in_order + other_metrics
-        pivot = pivot.reindex(final_metric_order).sort_index(axis=1)
+        pivot = pivot.reindex(final_metric_order, axis=1)
 
-        # Ensure the table is not empty before calculating the mean
+        # Ensure the table is not empty before proceeding
         if not pivot.empty:
-            # Calculate the mean of each column and add it as a new row named 'all'
-            pivot.loc['all'] = pivot.mean()
+            pivot['all'] = pivot.mean(axis=1)
+            
+            pivot = pivot.sort_values(by='all', ascending=True)
         
         # Print the final table in Markdown format
         print(pivot.to_markdown(floatfmt=".2f"))
@@ -112,7 +111,7 @@ def print_markdown_tables(df):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Parse CSV results from a directory and output Markdown tables of BD-Rate, grouped by encoder.'
+        description='Parse CSV results and output transposed Markdown tables of BD-Rate, sorted by average performance.'
     )
     parser.add_argument('root', help='Root directory containing the result CSV files.')
     args = parser.parse_args()

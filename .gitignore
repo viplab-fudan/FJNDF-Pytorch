@@ -139,21 +139,11 @@ cython_debug/
 
 # Files under codecs
 codecs/bin
-codecs/result
+codecs/result*
 codecs/source
 codecs/script/*.csv
 codecs/script/*.log
 codecs/script/*.txt
-codecs/script/bdrate
-codecs/script/bitsaving
-
-# Files under metrics
-metrics/bin
-metrics/source
-
-# Files under utils
-utils/bin
-utils/source
 
 # Files under results
 results/
@@ -165,5 +155,5 @@ datasets/
 *.y4m
 *.yuv
 *.pth
-experiments
+experiments*
 tb_logger*
