@@ -1,3 +1,13 @@
+"""
+Implementation of the MobileIE model, presented in the paper:
+
+    Yan, Hailong and Li, Ao and Zhang, Xiangtao and Liu, Zhe and Shi, Zenglin and Zhu, Ce and Zhang, Le,
+    "MobileIE: An Extremely Lightweight and Effective ConvNet for Real-Time Image Enhancement on Mobile Devices,"
+    arXiv preprint arXiv:2507.01838, 2025.
+
+This implementation is based on the official open-source project.
+For the original code, please refer to: https://github.com/AVC2-UESTC/MobileIE.git
+"""
 import os
 import yaml
 import torch

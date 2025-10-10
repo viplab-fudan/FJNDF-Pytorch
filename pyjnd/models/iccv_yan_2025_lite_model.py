@@ -1,3 +1,19 @@
+"""
+This file defines the MobileIE-Lite model, a custom lightweight network proposed in this repository.
+
+The MobileIE-Lite architecture is a simplified version of the MobileIE model, presented in:
+    
+    Yan, Hailong et al. "MobileIE: An Extremely Lightweight and Effective ConvNet for 
+    Real-Time Image Enhancement on Mobile Devices," arXiv preprint arXiv:2507.01838, 2025.
+
+Key modifications to the original MobileIE architecture include:
+  - Replacing all 5x5 convolutions with computationally cheaper 3x3 convolutions.
+  - Adopting a channel squeeze-and-expand structure within the core blocks.
+
+These changes result in a 45% reduction in computational cost (FLOPs) compared to the 
+original MobileIE network, making it exceptionally efficient for real-time applications 
+on resource-constrained devices.
+"""
 import os
 import yaml
 import torch

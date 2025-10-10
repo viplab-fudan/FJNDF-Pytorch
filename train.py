@@ -177,7 +177,7 @@ def train_pipeline(root_path, opt=None, args=None):
             if current_iter > total_iters:
                 break
             # update learning rate
-            # model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
+            model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
             # training
             model.feed_data(train_data)
             model.optimize_parameters(current_iter)
@@ -226,7 +226,7 @@ def train_pipeline(root_path, opt=None, args=None):
                 break
         # end of iter
         # use epoch based learning rate scheduler
-        model.update_learning_rate(epoch+2, warmup_iter=opt['train'].get('warmup_iter', -1))
+        # model.update_learning_rate(epoch+2, warmup_iter=opt['train'].get('warmup_iter', -1))
 
         if 'debug' in opt['name'] and epoch >= 2:
             break

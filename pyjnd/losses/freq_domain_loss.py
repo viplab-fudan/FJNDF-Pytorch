@@ -62,7 +62,13 @@ def _zigzag_indices(b: int):
 
 
 @LOSS_REGISTRY.register()
-class Dct8ResidualEnergyLoss(nn.Module):
+class FrequencyDomainResidualLoss(nn.Module):
+    """
+    Corresponds to L_dct^res in the paper.
+    Calculates the energy of the residual's DCT coefficients between the
+    network output (pred) and the reference (target).
+    Serves as a distillation loss in the frequency domain.
+    """
     def __init__(self, loss_weight: float = 1.0, reduction: str = 'mean', block: int = 8):
         super().__init__()
         if reduction not in ['none', 'mean', 'sum']:
@@ -72,14 +78,15 @@ class Dct8ResidualEnergyLoss(nn.Module):
         self.block = int(block)
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor, **kwargs) -> torch.Tensor:
-        assert target is not None, "Dct8ResidualEnergyLoss needs `target`."
+        assert target is not None, "FrequencyDomainResidualLoss needs `target`."
         assert pred.shape == target.shape, "pred/target shape mismatch."
 
         residual = pred - target
 
-        blocks = blockify(residual, self.block)          # (N,C,H//b,W//b,b,b)
-        coeffs = block_dct(blocks)                       # same shape
-        energy = coeffs.pow(2).sum(dim=(-1, -2))         # sum over (b,b) → (N,C,H//b,W//b)
+        blocks = blockify(residual, self.block)
+        coeffs = block_dct(blocks)
+        energy = coeffs.pow(2).sum(dim=(-1, -2))
+        
         if self.reduction == 'mean':
             loss = energy.mean()
         elif self.reduction == 'sum':
@@ -90,7 +97,14 @@ class Dct8ResidualEnergyLoss(nn.Module):
 
 
 @LOSS_REGISTRY.register()
-class Dct8HFConstraintLoss(nn.Module):
+class FrequencyConservationConstraintLoss(nn.Module):
+    """
+    Corresponds to L_dct^cons in the paper.
+    Imposes a bidirectional, asymmetric constraint by comparing the network
+    output (pred) with the original input (ori).
+    - Prevents over-smoothing by penalizing loss of low-frequency energy.
+    - Suppresses artifacts by penalizing creation of new high-frequency energy.
+    """
     def __init__(self, loss_weight: float = 1.0, reduction: str = 'mean', block: int = 8,
                  zigzag_cutoff: int = 10, low_band_weight: float = 1.0, high_band_weight: float = 1.0):
         super().__init__()
@@ -124,29 +138,28 @@ class Dct8HFConstraintLoss(nn.Module):
         return m
 
     def forward(self, pred: torch.Tensor, ori: torch.Tensor, **kwargs) -> torch.Tensor:
-        assert ori is not None, "Dct8HFConstraintLoss needs `ori`."
+        assert ori is not None, "FrequencyConservationConstraintLoss needs `ori`."
         assert pred.shape == ori.shape, "pred/ori shape mismatch."
 
-        p = pred
-        x = ori
-
-        p_blocks = blockify(p, self.block)
-        x_blocks = blockify(x, self.block)
+        p_blocks = blockify(pred, self.block)
+        x_blocks = blockify(ori, self.block)
 
         Cp = block_dct(p_blocks)
         Cx = block_dct(x_blocks)
 
         Cp_abs = Cp.abs()
         Cx_abs = Cx.abs()
+        
+        # Penalize when low-frequency energy in pred is less than in ori
+        low_mask = self.low_idx_mask.view(1, 1, 1, 1, self.block, self.block)
+        low_freq_loss = (Cx_abs - Cp_abs).clamp_min(0.0) * low_mask
 
-        low_mask = self.low_idx_mask.view(1,1,1,1,self.block,self.block)
-        LF_gap = (Cx_abs - Cp_abs).clamp_min(0.0) * low_mask
+        # Penalize when high-frequency energy in pred is greater than in ori
+        high_mask = self.high_idx_mask.view(1, 1, 1, 1, self.block, self.block)
+        high_freq_loss = (Cp_abs - Cx_abs).clamp_min(0.0) * high_mask
 
-        high_mask = self.high_idx_mask.view(1,1,1,1,self.block,self.block)
-        HF_gap = (Cp_abs - Cx_abs).clamp_min(0.0) * high_mask
-
-        loss_low = LF_gap.sum(dim=(-1, -2))
-        loss_high = HF_gap.sum(dim=(-1, -2))
+        loss_low = low_freq_loss.sum(dim=(-1, -2))
+        loss_high = high_freq_loss.sum(dim=(-1, -2))
 
         loss_map = self.low_band_weight * loss_low + self.high_band_weight * loss_high
 

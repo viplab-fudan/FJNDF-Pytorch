@@ -8,6 +8,7 @@ DIR_X265    = ./source/x265
 DIR_AOM     = ./source/aom
 DIR_VVENC   = ./source/vvenc
 DIR_VVDEC   = ./source/vvdec
+DIR_VQMT    = ./source/vqmt
 
 NAME_ENC_X264 = x264
 NAME_ENC_X265 = x265
@@ -15,6 +16,7 @@ NAME_ENC_AOM  = aomenc
 NAME_ENC_VVENC = vvenc
 NAME_DEC_AOM  = aomdec
 NAME_DEC_VVDEC = vvdec
+NAME_VQMT = vqmt
 
 #--- LOCAL -----------------------------
 
@@ -31,18 +33,21 @@ default:
 	@	echo "    	download_aom    :   download aom encoder                                 "
 	@	echo "    	download_vvenc  :   download vvenc encoder                               "
 	@	echo "    	download_vvdec  :   download vvdec decoder                               "
+	@	echo "    	download_vqmt   :   download vqmt  			                             "
 	@	echo "    update:    build all en/decoders bianry file under bin dir                 "
 	@	echo "    	update_x264   :   build x264 encoder                                     "
 	@	echo "		update_x265   :   build x265 encoder                                     "
 	@	echo "    	update_aom    :   build aom en/decoder                                   "
 	@	echo "    	update_vvenc  :   build vvenc encoder                                    "
 	@	echo "    	update_vvdec  :   build vvdec decoder                                    "
+	@	echo "    	update_vqmt   :   build vqmt                                             "
 	@	echo "    check:    check version of all encoders under codec dir                    "
 	@	echo "    	check_x264   :   check_version of x264 encoder                           "
 	@	echo "    	check_x265   :   check_version of x265 encoder                           "
 	@	echo "    	check_aom    :   check_version of aom  en/decoder                        "
 	@	echo "    	check_vvenc  :   check_version of vvenc encoder                          "
 	@	echo "    	check_vvdec  :   check_version of vvdec decoder                          "
+	@	echo "    	check_vqmt   :   check_version of vqmt                                   "
 	@	echo "                                                                               "
 	@	echo "                                                                               "
 
@@ -68,12 +73,16 @@ download_vvenc:
 download_vvdec:
 	@	git clone https://github.com/fraunhoferhhi/vvdec.git $(DIR_VVDEC)
 
+download_vqmt:
+	@	git clone https://github.com/rolinh/VQMT.git $(DIR_VQMT)
+
 download:
 	@	make download_x264
 	@	make download_x265
 	@	make download_aom
 	@	make download_vvenc
 	@	make download_vvdec
+	@	make download_vqmt
 
 check_x264:
 	@	cd $(DIR_BINARY) ;\
@@ -96,12 +105,17 @@ check_vvdec:
 	@	cd $(DIR_BINARY) ;\
 		./$(NAME_DEC_VVDEC) --version
 
+check_vqmt:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_VQMT) -v
+
 check:
 	@	make check_x264
 	@	make check_x265
 	@	make check_aom
 	@	make check_vvenc
 	@   make check_vvdec
+	@	make check_vqmt
 
 update_x264:
 	@   mkdir -p $(DIR_BINARY)
@@ -159,6 +173,14 @@ update_vvdec:
 		chmod +x $(DIR_BINARY)/$(NAME_DEC_VVDEC)
 	@	make check_vvdec
 
+update_vqmt:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_VQMT) ;\
+		make -j8
+	@	cp $(DIR_VQMT)/build/bin/Release/$(NAME_VQMT) $(DIR_BINARY)/$(NAME_VQMT) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_VQMT)
+	@	make check_vqmt
+
 update:
 	@   mkdir -p $(DIR_BINARY)
 	@   make update_x264
@@ -166,3 +188,4 @@ update:
 	@	make update_aom
 	@	make update_vvenc
 	@   make update_vvdec
+	@	make update_vqmt

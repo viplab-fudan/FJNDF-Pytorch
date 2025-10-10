@@ -80,11 +80,11 @@ train:
   fidelity_loss_opt:
     - type: CharbonnierLoss
       loss_weight: !!float 1.0
-    - type: Dct8ResidualEnergyLoss
+    - type: FrequencyDomainResidualLoss
       loss_weight: !!float 0.02
 
-  rate_loss_opt:
-    - type: Dct8HFConstraintLoss
+  constraint_loss_opt:
+    - type: FrequencyConservationConstraintLoss
       loss_weight: !!float 0.02
       zigzag_cutoff: 10
       low_band_weight: 1.0

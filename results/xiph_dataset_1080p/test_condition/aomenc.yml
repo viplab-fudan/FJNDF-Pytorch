@@ -1,0 +1,23 @@
+name: aomenc
+
+encoder_param:
+    --profile: 0
+    --codec: av1
+    --kf-min-dist: 1
+    --kf-max-dist: 1
+    --fps: 25/1
+    --limit: 100
+    --end-usage: q
+    --cq-level: 22
+    --target-bitrate: 7776
+    --passes: 1
+    --output: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_svt_av1.bin # set by encode.py
+    # --recon: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_svt_av1_enc.yuv # set by encode.py
+    --cpu-used: 0
+
+
+video_param:
+    --input: ../../dataset/ori/hevc_sdr_ctc/Kimono.yuv # set by encode.py
+    --width: 1920 # set by encode.py
+    --height: 1027  # set by encode.py
+    --bit-depth: 8

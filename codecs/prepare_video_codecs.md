@@ -6,7 +6,7 @@ This document describes how to install, configure, and run practical video encod
 2. Setting encoding parameters.
 3. Executing the encoding workflow.
 
-## 1. Installing and Compiling Encoders
+## 1. Installing and Compiling Encoder|Decoder|Tools
 
 We use a Makefile to manage encoder source retrieval and compilation:
 
@@ -48,6 +48,17 @@ make update_vvenc
 make download_vvdec
 make update_vvdec
 ```
+
+### Tools to calculate Metric
+
+We use **VQMT** to calculate **psnr_hvsm** and **ms_ssim**
+
+```bash
+make download_vqmt
+make update_vqmt
+```
+
+We use **FFMPEG** to calculate **psnr, ssim, vamf** and **vmaf_neg**
 
 ## 2. Setting Encoding Parameters
 

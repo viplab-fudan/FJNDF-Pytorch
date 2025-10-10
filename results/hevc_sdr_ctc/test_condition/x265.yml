@@ -1,0 +1,24 @@
+name: x265
+
+encoder_param:
+    --preset: 5
+    --keyint: 200 # greater than 100 to ensure only one I frame
+    --fps: 25
+    --frames: 100 # set by encode.py
+    --qp: 22 # set by encde.py
+    --bitrate: 7776 # set by encode.py
+    --crf: 23 # set by encode.py
+    --output-depth: 8
+    --output: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_x265.bin # set by encode.py
+    --recon: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_x265_enc.yuv # set by encode.py
+    --log-level: full
+    --csv: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_x265.csv # set by encode.py
+    --csv-log-level: 2
+    --bframes: 0
+    --rc-lookahead: 0
+    --ref: 1
+
+video_param:
+    --input: ../../dataset/ori/hevc_sdr_ctc/Kimono.yuv # set by encode.py
+    --input-res: 1920x1027  # set by encode.py
+    --input-depth: 8

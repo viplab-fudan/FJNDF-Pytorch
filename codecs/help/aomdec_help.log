@@ -1,0 +1,47 @@
+Usage: ./aomdec <options> filename
+
+Options:
+            --help                      Show usage options and exit
+            --codec=<arg>               Codec to use
+            --yv12                      Output raw YV12 frames
+            --i420                      Output raw I420 frames
+            --flipuv                    Flip the chroma planes in the output
+            --rawvideo                  Output raw YUV frames
+            --noblit                    Don't process the decoded frames
+            --progress                  Show progress after each frame decodes
+            --limit=<arg>               Stop decoding after n frames
+            --skip=<arg>                Skip the first n input frames
+            --summary                   Show timing summary
+  -o <arg>, --output=<arg>              Output file name pattern (see below)
+  -t <arg>, --threads=<arg>             Max threads to use
+            --row-mt=<arg>              Enable row based multi-threading, default: 0
+  -v,       --verbose                   Show version string
+  -S,       --scale                     Scale output frames uniformly
+            --frame-buffers=<arg>       Number of frame buffers to use
+            --md5                       Compute the MD5 sum of the decoded frame
+            --framestats=<arg>          Output per-frame stats (.csv format)
+  -k,       --keep-going                (debug) Continue decoding after error
+            --output-bit-depth=<arg>    Output bit-depth for decoded frames
+            --annexb                    Bitstream is in Annex-B format
+            --oppoint=<arg>             Select an operating point of a scalable bitstream
+            --all-layers                Output all decoded frames of a scalable bitstream
+            --skip-film-grain           Skip film grain application
+
+Output File Patterns:
+
+  The -o argument specifies the name of the file(s) to write to. If the
+  argument does not include any escape characters, the output will be
+  written to a single file. Otherwise, the filename will be calculated by
+  expanding the following escape characters:
+
+	%w   - Frame width
+	%h   - Frame height
+	%<n> - Frame number, zero padded to <n> places (1..9)
+
+  Pattern arguments are only supported in conjunction with the --yv12 and
+  --i420 options. If the -o option is not specified, the output will be
+  directed to stdout.
+
+Included decoders:
+
+    av1    - AOMedia Project AV1 Decoder v3.12.1

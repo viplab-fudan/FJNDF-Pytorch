@@ -226,17 +226,17 @@ train:
 Loss functions for training:
 ```plainText
 train:
-  fidelity_loss_opt: # Fidelity loss, e.g., L1Loss, MSELoss, CharbonnierLoss, Dct8ResidualEnergyLoss
+  fidelity_loss_opt: # Fidelity loss, e.g., L1Loss, MSELoss, CharbonnierLoss, FrequencyDomainResidualLoss
     - type: CharbonnierLoss
       loss_weight: !!float 1.0
-    - type: Dct8ResidualEnergyLoss
+    - type: FrequencyDomainResidualLoss
       loss_weight: !!float 0.02
 
-  rate_loss_opt: # Rate loss, e.g., Dct8HFConstraintLoss
-    - type: Dct8HFConstraintLoss
+  constraint_loss_opt: # Constraint loss, e.g., FrequencyConservationConstraintLoss
+    - type: FrequencyConservationConstraintLoss
       loss_weight: !!float 0.02
 
-  perceptual_loss_opt: # Perceptual loss, e.g., MsssimLoss, VifLoss
+  perceptual_loss_opt: # Perceptual loss, e.g., MsssimLoss, VGGLoss
     - type: MsssimLoss
       loss_weight: !!float 0.16
 ```

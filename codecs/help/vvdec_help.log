@@ -1,0 +1,25 @@
+
+ Usage:  vvdecapp  [param1] [pararm2] [...]
+
+	 File input Options
+
+		 [--bitstream,-b <str>      ] : bitstream input file
+		 [--frames,-f  <int>        ] : max. frames to decode (default: -1 all frames)
+
+	 YUV output options
+
+		 [--output,-o  <str>        ] : yuv output file (default: not set)
+		 [--y4m                     ] : force y4m output (for pipe output; auto enable for .y4m output file extension)
+
+	 Decoder Options
+
+		 [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )
+
+	 General Options
+
+		 [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice, 5: verbose, 6: debug) (default: 4)
+		 [--version                 ] : show version
+		 [--help,-h                 ] : show help
+		 [--fullhelp                ] : show full help including expert options
+
+

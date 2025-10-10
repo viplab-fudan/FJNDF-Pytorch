@@ -59,16 +59,16 @@ class GeneralLRJNDModel(BaseLRModel):
             self.cri_fidelity = None
 
         # define rate losses, such as si loss, si contrast loss
-        f_opt = train_opt.get('rate_loss_opt')
+        f_opt = train_opt.get('constraint_loss_opt')
         if f_opt:
             if isinstance(f_opt, dict):
                 f_opt = [f_opt]
             losses = []
             for opt in f_opt:
                 losses.append(build_loss(opt).to(self.device))
-            self.cri_rate = nn.ModuleList(losses)
+            self.cri_cons = nn.ModuleList(losses)
         else:
-            self.cri_rate = None
+            self.cri_cons = None
 
         # define perceptual losses, such as vgg feature loss, lpips loss
         f_opt = train_opt.get('perceptual_loss_opt')
@@ -198,9 +198,9 @@ class GeneralLRJNDModel(BaseLRModel):
                 l_total += l_fidelity
                 loss_dict['l_fidelity'] = l_fidelity
 
-            if self.cri_rate:
+            if self.cri_cons:
                 l_rate = 0
-                for loss_fn in self.cri_rate:
+                for loss_fn in self.cri_cons:
                     l_rate += loss_fn(pred, ori)
                 l_total += l_rate
                 loss_dict['l_rate'] = l_rate
@@ -303,8 +303,8 @@ class GeneralLRJNDModel(BaseLRModel):
                     if self.cri_fidelity:
                         for fn in self.cri_fidelity:
                             batch_loss += fn(out, ref).item()
-                    if self.cri_rate:
-                        for fn in self.cri_rate:
+                    if self.cri_cons:
+                        for fn in self.cri_cons:
                             batch_loss += fn(out, ori).item()
                     if self.cri_perceptual:
                         out_sc = self.softclip01(out)
@@ -329,8 +329,8 @@ class GeneralLRJNDModel(BaseLRModel):
                     if self.cri_fidelity:
                         for fn in self.cri_fidelity:
                             batch_loss += fn(out, ref).item()
-                    if self.cri_rate:
-                        for fn in self.cri_rate:
+                    if self.cri_cons:
+                        for fn in self.cri_cons:
                             batch_loss += fn(out, ori).item()
                     if self.cri_perceptual:
                         out_sc = self.softclip01(out)

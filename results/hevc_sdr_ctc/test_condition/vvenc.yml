@@ -1,0 +1,21 @@
+name: vvenc
+
+encoder_param:
+    -c: ../source/vvenc/cfg/experimental/lowdelay_fast.cfg
+    --IntraPeriod: 200 # greater than 100 to ensure only one I frame
+    --FrameRate: 25
+    --FramesToBeEncoded: 100 # set by encode.py
+    --QP: 22 # set by encode.py
+    --TargetBitrate: 7776 # set by encode.py
+    --NumPasses: 1
+    --BitstreamFile: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_vvenc.bin # set by encode.py
+    --ReconFile: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_vvenc_enc.yuv # set by encode.py
+    --InternalBitDepth: 8 # set by encode.py
+    --OutputBitDepth: 8 # set by encode.py
+
+
+video_param:
+    --InputFile: ../../dataset/ori/hevc_sdr_ctc/Kimono.yuv # set by encode.py
+    --SourceWidth: 1920 # set by encode.py
+    --SourceHeight: 1027  # set by encode.py
+    --InputBitDepth: 8 # set by encode.py
