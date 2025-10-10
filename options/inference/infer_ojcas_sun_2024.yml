@@ -1,0 +1,11 @@
+name: ojcas_sun_2024
+type: IQNet
+
+normalized: True
+
+in_channels: 3
+only_train_y: True
+precision: fp32
+
+pretrained: True
+pretrained_model_path: ./weights/ojcas_sun_2024.pth # change it to your own weight file

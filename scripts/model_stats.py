@@ -25,7 +25,6 @@ def main():
 
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
-    total_size_mb = total_params * 4 / (1024 ** 2)  # Assume 4 bytes per parameter (fp32)
 
     # Count FLOPs
     _, C, H, W = args.input_shape
@@ -36,12 +35,12 @@ def main():
         print_per_layer_stat=False,
         verbose=False
     )
-    gflops = flops / 1e9
+    gflops = flops * 2 / 1e9
 
     # Output results
     print(f"Configuration file: {args.cfg_path}")
-    print(f"Parameters: {total_params:,}, Size: {total_size_mb:.2f} MB")
-    print(f"Computational complexity: {flops:,} FLOPs, i.e. {gflops:.2f} GFLOPS")
+    print(f"Parameters: {total_params:,} K")
+    print(f"Computational complexity: {gflops:.2f} GFLOPS")
 
 if __name__ == '__main__':
     main()

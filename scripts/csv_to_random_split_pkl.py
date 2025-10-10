@@ -11,7 +11,7 @@ Usage:
       [--train_ratio 0.8] [--val_ratio 0.1] [--test_ratio 0.1]
 
 Requirements: Input CSV must contain headers:
-  input_image,reference_image,yuv_width,yuv_height,yuv_format,yuv_bitdepth,jnd_mean
+  input_image,reference_image,yuv_width,yuv_height,yuv_format,yuv_bitdepth
 
 Output pkl format:
   {1: {'train': [...], 'val': [...], 'test': [...]},

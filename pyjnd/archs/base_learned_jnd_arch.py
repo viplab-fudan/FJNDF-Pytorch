@@ -22,7 +22,7 @@ class BaseLRModel(torch.nn.Module):
         self.schedulers = []
         self.optimizers = []
         self.train_target = opt['train']['target']
-        assert self.train_target in ['score', 'image'], \
+        assert self.train_target in ['image'], \
             f"Unknown train target: {self.train_target}"
 
     def feed_data(self, data):

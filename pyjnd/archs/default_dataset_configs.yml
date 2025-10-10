@@ -7,4 +7,3 @@ koniq10k:
   phase: 'test'
   jnd_range: [1, 100]
   lower_better: false
-  jnd_normalize: false

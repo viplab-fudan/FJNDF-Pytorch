@@ -1,0 +1,17 @@
+name: iccv_yan_lite_2025
+type: MobileIENet_Lite
+
+normalized: True
+
+in_channels: 3
+out_channels: 3
+head_channels: 8
+body_channels: 8
+tail_channels: 12
+rep_scale: 4
+only_train_y: True
+precision: fp32
+
+
+pretrained: True
+pretrained_model_path: ./weights/iccv_yan_lite_2025.pth # change it to your own weight file

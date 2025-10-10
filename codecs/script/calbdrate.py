@@ -158,7 +158,7 @@ def main():
     # 2) Validate required columns
     #    Besides ['video','enc_ratio','bpp'], also need metrics columns for subsequent BD calculation
 #    Assume results table has other columns like 'PSNR', 'SSIM', etc. Here only example 'PSNR'
-    metrics = [col for col in anchor_df.columns if col not in ('video', 'enc_ratio', 'bpp', 'ssimulacra2')]
+    metrics = [col for col in anchor_df.columns if col not in ('video', 'enc_ratio', 'bpp')]
     required_cols = ['video', 'enc_ratio', 'bpp'] + metrics
     for col in required_cols:
         if col not in anchor_df.columns or col not in test_df.columns:

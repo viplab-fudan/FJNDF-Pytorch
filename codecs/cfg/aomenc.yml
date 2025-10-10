@@ -11,13 +11,13 @@ encoder_param:
     --cq-level: 22
     --target-bitrate: 7776
     --passes: 1
-    # --recon: ../../dataset/tmp/svac_beihaihumian_80_svt_av1_enc.yuv # set by encode.py
-    --output: ../../dataset/tmp/svac_beihaihumian_80_svt_av1.bin # set by encode.py
+    --output: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_svt_av1.bin # set by encode.py
+    # --recon: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_svt_av1_enc.yuv # set by encode.py
     --cpu-used: 0
 
 
 video_param:
-    --input: ../../dataset/ori/svac/R_1920x1080_beihaihumian_50fps_500.yuv # set by encode.py
+    --input: ../../dataset/ori/hevc_sdr_ctc/Kimono.yuv # set by encode.py
     --width: 1920 # set by encode.py
-    --height: 1080  # set by encode.py
+    --height: 1027  # set by encode.py
     --bit-depth: 8

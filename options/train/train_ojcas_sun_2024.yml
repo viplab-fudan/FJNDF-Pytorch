@@ -1,10 +1,10 @@
 # general settings
-name: train_PUCNet_DIVKON2K
+name: train_IQNet_DIVKON2K
 arch_type: GeneralLRJNDModel
 num_gpu: 1  # set num_gpu: 0 for cpu mode
 manual_seed: 123
 split_num: 1
-save_final_results_path: './experiments/PUCNet_DIVKON2K_10splits_results.txt'
+save_final_results_path: './experiments/IQNet_DIVKON2K_5splits_results.txt'
 
 # dataset and data loader settings
 datasets:
@@ -13,20 +13,23 @@ datasets:
     type: GeneralFRDataset
 
     dataroot_in: ./datasets/divkon_2k_yuv/ori
-    dataroot_ref: ./datasets/divkon_2k_yuv/tip_bae_2016_filter_2
+    dataroot_ref: ./datasets/divkon_2k_yuv/tob_kang_2023_filter_5
     meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
-    split_file: ./datasets/info/train/divkon_2k_yuv_10_splits.pkl
+    split_file: ./datasets/info/train/divkon_2k_yuv_5_splits.pkl
     split_index: 1
 
     augment:
       center_crop: 224
+      hflip: 1
+      vflip: 1
+      rot90: 1
     img_range: 1
 
     # data loader
     use_shuffle: true
     num_worker_per_gpu: 8
     batch_size_per_gpu: 16
-    dataset_enlarge_ratio: 1
+    dataset_enlarge_ratio: 4
     prefetch_mode: ~
 
   val:
@@ -34,16 +37,15 @@ datasets:
     type: GeneralFRDataset
 
     dataroot_in: ./datasets/divkon_2k_yuv/ori
-    dataroot_ref: ./datasets/divkon_2k_yuv/tip_bae_2016_filter_2
+    dataroot_ref: ./datasets/divkon_2k_yuv/tob_kang_2023_filter_5
     meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
-    split_file: ./datasets/info/train/divkon_2k_yuv_10_splits.pkl
+    split_file: ./datasets/info/train/divkon_2k_yuv_5_splits.pkl
     split_index: 1
 
 # network structures
 network:
-  type: PUCNet
+  type: IQNet
   in_channels: 3
-  downscale_factor: 4
   only_train_y: true
 
 # path
@@ -60,51 +62,41 @@ train:
 
   optim:
     type: Adam
-    lr: !!float 1e-3
-    weight_decay: !!float 1e-4
-
-  optim_finetune:
-    type: Adam
-    lr: !!float 1e-5
-    weight_decay: !!float 5e-4
+    lr: !!float 3e-4
+    weight_decay: !!float 1e-6
 
   scheduler:
-    type: MultiStepLR
-    milestones: [100]  
-    gamma: 0.1
+    type: CosineAnnealingLR
+    T_max: 97000
+    eta_min: !!float 1e-6
 
-  scheduler_finetune:
-    type: MultiStepLR
-    milestones: [1000]
-    gamma: 1
-
-  total_epoch: 200
-  # total_iter: 25000
-
-  warmup_iter: -1  # no warm up
+  total_iter: 100000
+  warmup_iter: 3000
 
   # losses
   fidelity_loss_opt:
-    - type: L1Loss
+    - type: CharbonnierLoss
       loss_weight: !!float 1.0
+    - type: Dct8ResidualEnergyLoss
+      loss_weight: !!float 0.02
 
   rate_loss_opt:
-
+    - type: Dct8HFConstraintLoss
+      loss_weight: !!float 0.02
+      zigzag_cutoff: 10
+      low_band_weight: 1.0
+      high_band_weight: 1.0
 
   perceptual_loss_opt:
-  #   - type: PyiqaLoss
-  #     metric_name: lpips
-  #     need_ref: true
-  #     lower_better: true
-  #     loss_weight: !!float 1.0
+    - type: MsssimLoss
+      loss_weight: !!float 0.16
   
 # validation settings
 val:
-  val_freq: !!float 250
+  val_freq: !!float 1000
   save_img: false
   pbar: true
 
-  key_metric: psnr # if this metric improve, update all metrics. If not specified, each best metric results will be updated separately
   metrics:
     psnr: # metric name, can be arbitrary
       type: calculate_psnr

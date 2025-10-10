@@ -1,6 +1,6 @@
-# 🔍 JND Filtering Benchmark Platform
+# 🔍 Frequency-Domain JND-Guided Pre-Filter Benchmark
 
-This project provides a **JND (Just Noticeable Difference) filtering benchmark platform** to evaluate the performance of various JND filtering algorithms in the pre-processing stage of video compression. The platform supports batch filtering of YUV/Y4M video sequences and generates standardized experiment results.
+This project provides a **Frequncy-Domain JND-Guided (Just Noticeable Difference) Pre-Filter Benchmark** to evaluate the performance of various combinations of frequency-domain JND modeling and injection algorithms in the pre-processing stage of video compression. The platform supports batch filtering of YUV/Y4M video sequences and generates standardized experiment results.
 
 ---
 
@@ -57,7 +57,7 @@ python3 filt_one_video.py \
     --resolution 768x512 \
     --format yuv420p \
     --bitdepth 8 \
-    --cfg options/inference/infer_tip_bae_2016.yml \
+    --cfg options/inference/infer_iccv_yan_lite_2025.yml \
     --start_frame 0 \
     --frame_num 1 \
     --platform cpu \
@@ -90,12 +90,12 @@ Use `filt_one_dataset.py` to process all YUV files in a folder:
 python3 filt_one_dataset.py \
     --input_csv datasets/info/codec/hevc_sdr_ctc_meta_info.csv \
     --input_dir datasets/hevc_sdr_ctc/ori \
-    --cfg options/inference/infer_tip_bae_2016.yml \
+    --cfg options/inference/infer_iccv_yan_lite_2025.yml \
     --frame_num 1 \
     --platform cpu \
     --cores 4 \
     --gpu_ids 0,1 \
-    --output datasets/hevc_sdr_ctc/tip_bae_2016/
+    --output datasets/hevc_sdr_ctc/iccv_yan_lite_2025/
 ```
 
 | Parameter        | Description                                                            |
@@ -118,8 +118,8 @@ To assess the practical impact of our filtering algorithm, we have integrated an
 
 - **x264**  
 - **x265**  
-- **libaom** (AV1)  
-- **VVenc** (VVC)
+- **libaom**
+- **VVenc**
 
 For detailed instructions on encoder installation, configuration, and usage, please refer to [`codecs/prepare_video_codecs.md`](codecs/prepare_video_codecs.md).  
 
@@ -130,12 +130,12 @@ We have validated our algorithm performance on the JND Filtering Benchmark Platf
 ## 📂 Train Pipeline
 
 ### 1. Prepare Image or Video Dataset for Training
-You need to prepare the original YUV data for training. If you wish to use a supervised learning approach, you will also need to provide reference YUV data. For reference, we provide the `divkon_2k` dataset, which combines two popular datasets: `div2k` and `koniq1k`. In addition to the original YUV data, we also provide reference YUV data that has undergone multiple degradation and detail enhancement processes, suitable for supervised learning. For details, please refer to [`datasets/prepare_datasets.md`](datasets/prepare_datasets.md).
+You need to prepare the original YUV data for training. If you wish to use a supervised learning approach, you will also need to provide reference YUV data. For reference, we provide the `divkon_2k` dataset, which combines two popular datasets: `div2k` and `konjnd-1k`. In addition to the original YUV data, we also provide reference YUV data that has undergone multiple degradation and detail enhancement processes, suitable for supervised learning. For details, please refer to [`datasets/prepare_datasets.md`](datasets/prepare_datasets.md).
 
 You can follow the organization of this dataset to create your own.
 
 ### 2. Prepare Dataset Description CSV File
-You need to prepare a file that describes the properties of the YUV data in your dataset. We use a CSV file for this purpose, with the following headers: `input_image`, `reference_image`, `yuv_width`, `yuv_height`, `yuv_format`, `yuv_bitdepth`, `jnd_mean`. In a supervised training strategy, `reference_image` will be used as the learning target. In an unsupervised strategy, only `input_image` will be used.
+You need to prepare a file that describes the properties of the YUV data in your dataset. We use a CSV file for this purpose, with the following headers: `input_image`, `reference_image`, `yuv_width`, `yuv_height`, `yuv_format`, `yuv_bitdepth`. In a supervised training strategy, `reference_image` will be used as the learning target. In an unsupervised strategy, only `input_image` will be used.
 You can refer to [`divkon_2k_yuv_meta_info.csv`](datasets/info/train/divkon_2k_yuv_meta_info.csv) to prepare the description file for your own dataset.
 
 ### 3. Generate Dataset Random Split Information PKL File
@@ -143,12 +143,12 @@ You need to prepare a dataset split file to define the training, validation, and
 ```bash
 python3 csv_to_random_split_pkl.py \
   --csv datasets/info/train/divkon_2k_yuv_meta_info.csv \
-  --output datasets/info/train/divkon_2k_yuv_10_splits.pkl \
-  --splits 10 \
-  --seed 123 \
-  --train_ratio 0.8 \
-  --val_ratio 0.1 \
-  --test_ratio 0.1
+  --output datasets/info/train/divkon_2k_yuv_5_splits.pkl \
+  --splits 5 \
+  --seed 42 \
+  --train_ratio 0.90 \
+  --val_ratio 0.05 \
+  --test_ratio 0.05
 ```
 With the command above, the script will create `--splits` random splits based on the information in the input file specified by `--csv`, using the random seed from `--seed` and the ratios defined by `--train/val/test_ratio`. The results will be saved to the path specified by `--output`. We use .pkl files to store the dataset split information.
 
@@ -161,9 +161,9 @@ datasets:
     type: GeneralFRDataset
 
     dataroot_in: ./datasets/divkon_2k_yuv/ori
-    dataroot_ref: ./datasets/divkon_2k_yuv/usm_sharpen
+    dataroot_ref: ./datasets/divkon_2k_yuv/tob_kang_2023_filter_5
     meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
-    split_file: ./datasets/info/train/divkon_2k_yuv_10_splits.pkl
+    split_file: ./datasets/info/train/divkon_2k_yuv_5_splits.pkl
     split_index: 1
 
   val:
@@ -179,7 +179,7 @@ Data sampling and augmentation methods:
 datasets:
   train:
     augment:
-      center_crop|random_crop: 192 # Center crop | Random crop size
+      center_crop|random_crop: 224 # Center crop | Random crop size
       hflip: 1 # Enable random horizontal flip
       vflip: 1 # Enable random vertical flip
       rot90: 1 # Enable random 90-degree rotation
@@ -191,13 +191,13 @@ Batch size during training:
 datasets:
   train:
     batch_size_per_gpu: 16
-    dataset_enlarge_ratio: 1 # Dataset enlargement ratio
+    dataset_enlarge_ratio: 4 # Dataset enlargement ratio
 ```
 
 Model parameters for training:
 ```plainText
 network:
-  type: PUCNet # The type of model to be trained
+  type: MobileIENet_Lite # The type of model to be trained
   ... #  More parameters are determined by the specific model type
 ```
 
@@ -210,35 +210,35 @@ train:
 
   optim: # Optimizer settings
     type: Adam
-    lr: !!float 1e-3
-    weight_decay: !!float 1e-4
+    lr: !!float 3e-4
+    weight_decay: !!float 1e-6
 
   scheduler: # Scheduler settings
-    type: MultiStepLR
-    milestones:  
-    gamma: 0.1
+    type: CosineAnnealingLR
+    T_max: 97000
+    eta_min: !!float 1e-6
+  
+  total_iter: 100000 # Total number of training iterations
 
-  total_epoch: 200 # Total number of training epochs
-
-  warmup_iter: -1 # Number of warm-up iterations, -1 means no warm-up
+  warmup_iter: 3000 # Number of warm-up iterations, -1 means no warm-up
 ```
 
 Loss functions for training:
 ```plainText
 train:
-  fidelity_loss_opt: # Fidelity loss, e.g., L1Loss, MSELoss, MsssimLoss
-    - type: MsssimLoss
-      loss_weight: !!float 0.1
-    - type: L1Loss
+  fidelity_loss_opt: # Fidelity loss, e.g., L1Loss, MSELoss, CharbonnierLoss, Dct8ResidualEnergyLoss
+    - type: CharbonnierLoss
       loss_weight: !!float 1.0
+    - type: Dct8ResidualEnergyLoss
+      loss_weight: !!float 0.02
 
-  rate_loss_opt: # Rate loss, e.g., DctLoss, CompressaiRateLoss
-    - type: Dct8Loss
-      loss_weight: !!float 8.0
+  rate_loss_opt: # Rate loss, e.g., Dct8HFConstraintLoss
+    - type: Dct8HFConstraintLoss
+      loss_weight: !!float 0.02
 
-  perceptual_loss_opt: # Perceptual loss, e.g., PerceptualLoss, VifLoss
-    - type: VifLoss
-      loss_weight: !!float 0.1
+  perceptual_loss_opt: # Perceptual loss, e.g., MsssimLoss, VifLoss
+    - type: MsssimLoss
+      loss_weight: !!float 0.16
 ```
 For more about loss functions, see the loss function files in the `pyjnd/losses` folder.
 
@@ -247,48 +247,15 @@ After preparing the dataset and setting the training parameters, you can use [`t
 
 Single training run command:
 ```bash
-python3 train.py -opt options/train/train_arxiv_ma_2023.yml
+python3 train.py -opt options/train/train_iccv_yan_lite_2025.yml
 ```
 
-Multiple training runs command:
+Multiple split training runs command:
 ```bash
-python3 train_nsplits.py -opt options/train/train_arxiv_ma_2023.yml
+python3 train_nsplits.py -opt options/train/train_iccv_yan_lite_2025.yml
 ```
+>**Note:** For multiple split training, you need to set **split_num** in .yml configuration file greater than 1 
 The training results are all located in the `experiments/` folder.
-
-
-## 🆕 onnx_converter Script
-
-A new script `export_onnx.py` is available to export JND models to ONNX format and verify numerical consistency between PyTorch and ONNXRuntime.
-
-**Key Features:**
-
-- Loads model configuration and weights from a YAML file.
-- Exports the model with support for dynamic batch size, height, and width.
-- Validates ONNX model structure using `onnx.checker`.
-- Compares PyTorch and ONNXRuntime outputs and prints max and mean absolute errors.
-
-**Usage Example:**
-
-```bash
-python3 export_onnx.py \
-  --cfg_file ./options/inference/infer_puc_he_2025.yml \
-  --output_onnx ./outputs/pucnet.onnx \
-  --batch 1 --height 768 --width 512
-```
-
-## 🆕 Post-Training Weight Quantization
-
-A new script `post_train_weight_quanter.py` is provided for post-training quantization of model weights. Currently, only FP32 to FP16 conversion is supported. INT8 quantization support is planned for a future release.
-
-**Usage Example:**
-
-```bash
-python3 post_train_weight_quanter.py \
-  --cfg_file ./options/inference/infer_puc_he_2025.yml \
-  -o path/to/model_fp16.pth \
-  --dtype fp16
-```
 
 ## 📑 Citation
 
@@ -296,7 +263,7 @@ If you find our codes helpful to your research, please consider to use the follo
 
 ```bib
 @misc{pyjnd,
-  title={{JNDF-PyTorch}: JND Filtering Benchmark Platform},
+  title={{FJNDF-PyTorch}: JND Filtering Benchmark Platform},
   author={Chenlong He},
   year={2025},
   howpublished = "[Online]. Available: \url{https://github.com/NanUshio/JNDF-Pytorch}"

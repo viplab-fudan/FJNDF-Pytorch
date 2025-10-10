@@ -4,11 +4,15 @@ FRAME_NUM=1
 CORE=4
 PLAT=cpu
 
-DATASET_LIST=(kodak24)
+DATASET_LIST=(hevc_sdr_ctc)
 MODEL_LIST=(
+            tcsvt_wei_2009
+            spl_bae_2013
             tip_bae_2016
-            puc_he_2025
-            arxiv_ma_2023
+            tob_kang_2023
+            ojcas_sun_2024
+            iccv_yan_2025
+            iccv_yan_lite_2025
 )
 
 for DATASET in "${DATASET_LIST[@]}"; do

@@ -47,8 +47,8 @@ def list_models(type=None, filter='', exclude_filters=''):
     if type is None:
         all_models = DEFAULT_CONFIGS.keys()
     else:
-        assert type in ['SpatialJNDModel', 'FrequencyJNDModel', 'TopDownJNDModel', 'GeneralLRJNDModel']
-        f'Model Type only support [SpatialJNDModel, FrequencyJNDModel, TopDownJNDModel, GeneralLRJNDModel], but got {type}'
+        assert type in ['FrequencyJNDModel', 'GeneralLRJNDModel']
+        f'Model Type only support [FrequencyJNDModel, GeneralLRJNDModel], but got {type}'
         all_models = [key for key in DEFAULT_CONFIGS.keys() if DEFAULT_CONFIGS[key]['type'] == type]
 
     if filter:

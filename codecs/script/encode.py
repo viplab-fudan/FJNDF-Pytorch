@@ -1,20 +1,13 @@
 import subprocess
 import argparse
 import os
-import csv
 import re
 import sqlite3
 import logging
-from pathlib import Path
 
 import pandas as pd
-import numpy as np
-import pickle as pkl
-import decord
 import yaml
-import shutil
 import filecmp
-import math
 
 from tqdm import tqdm
 from multiprocessing import Manager
@@ -22,15 +15,15 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--encoder", type=str, default="./cfgBhv/svt_av1.yml", help="the configure file of encoder")
+    parser.add_argument("-e", "--encoder", type=str, default="./cfgBhv/x264.yml", help="the configure file of encoder")
     parser.add_argument("--enc_mode"     , type=str, default="CQP", help="the mode of encoder, CQP, CBR and CRF modes are supported")
-    parser.add_argument("--qp_list"      , type=str, default="22,27,32,37", help="comma-separated list of QP/CR/RF values")
+    parser.add_argument("--qp_list"      , type=str, default="27,32,37,42", help="comma-separated list of QP/CR/RF values")
     parser.add_argument("--frame_num"    , type=int , default=1, help="the number of frame to be encoded")
     parser.add_argument("--fps"          , type=int , default=25, help="frame per second")
     parser.add_argument("--input_csv"    , type=str, default="../../dataset/info/svac_meta_info.csv", help="the meta infomation of source video")
     parser.add_argument("--input_dir"    , type=str, default="../../dataset/svac/", help='the directory where YUV videos are located')
     parser.add_argument("-c", "--core"   , type=int, default=7, help='the core number used to parallelly encode source videos')
-    parser.add_argument("-m", "--metrics", nargs="+", choices=["psnr", "psnr_hvsm", "ssim", "ms_ssim", "ssimulacra2", "vmaf", "vmaf_neg"], default=["psnr"], help="List of metrics to calculate")
+    parser.add_argument("-m", "--metrics", nargs="+", choices=["psnr", "psnr_hvsm", "ssim", "ms_ssim", "vmaf", "vmaf_neg"], default=["psnr"], help="List of metrics to calculate")
     parser.add_argument("-o", "--output" , type=str, default="../../dataset/compressed" , help='the output directory to store compressed video')
     parser.add_argument("--db", type=str , default="results.db", help="SQLite3 database storage file")
     args = parser.parse_args()
@@ -68,33 +61,50 @@ def csv_load(csvPath, input_dir):
     return videoParam
 
 def get_bit_rate(width, height, bitDepth, format_, encFps, encNumber, ratio):
-    # get display time
-    time = float(encNumber) / float(encFps)
-    
-    # get size in bit
-    size = int(width) * int(height) * int(encNumber) * 8 * 1.5 / float(ratio)
-    
-    # get rate in bps
-    rate = float(size) / float(time) / 1000.0
-    return int(rate)
+    """
+    Estimate bitrate (kbps) for raw YUV given subsampling and a compression ratio.
+    - width, height: frame size
+    - bitDepth: bits per sample (e.g., 8, 10)
+    - format_: string indicating format, e.g., 'yuv420p', 'NV12', 'yuv422', 'yuv444', 'gray', 'y'
+    - encFps: frames per second
+    - encNumber: number of frames
+    - ratio: compression ratio (e.g., raw_size / compressed_size). Use 1.0 for raw.
+    Returns: integer kbps (as in your original code).
+    """
+    if encFps == 0:
+        raise ValueError("encFps must be > 0")
+
+    fmt = (format_ or "").lower()
+
+    # Subsampling factor per pixel (samples per pixel):
+    # 4:0:0 -> 1, 4:2:0 -> 1.5, 4:2:2 -> 2, 4:4:4 -> 3
+    def subsampling_factor(fmt_str: str) -> float:
+        # Common aliases
+        if any(k in fmt_str for k in ["yuv444", "y444", "444"]):
+            return 3.0
+        if any(k in fmt_str for k in ["yuv422", "y422", "422"]):
+            return 2.0
+        if any(k in fmt_str for k in ["yuv420", "y420", "i420", "nv12", "nv21", "420"]):
+            return 1.5
+        if any(k in fmt_str for k in ["yuv400", "y800", "gray", "grey", "y-only", " y ", " y8 ", " y10 "]):
+            return 1.0
+        # Fallback: try to be conservative and assume 4:2:0
+        return 1.5
+
+    spp = subsampling_factor(fmt)
+
+    # display time in seconds
+    time_sec = float(encNumber) / float(encFps)
+
+    # total bits = W * H * frames * bitDepth * samples_per_pixel, then divide by ratio
+    total_bits = int(width) * int(height) * int(encNumber) * float(bitDepth) * spp / float(ratio)
+
+    # kbps (note: original code divides by 1000, not 1024)
+    kbps = (total_bits / time_sec) / 1000.0
+    return int(kbps)
 
 def set_enc_param(encParam, videoType, videoPath, videoName, width, height, bitDepth, format_, encFps, encNumber, ratio):
-    if encParam['name'] == 'jpeg':
-        encParam['video_param']['--input'] = videoPath
-        encParam['video_param']['--input-res'] = f"{width}x{height}"
-        encParam['encoder_param']['--output'] = args.output + f"/{videoType}_{videoName}_{ratio}_{encParam['name']}.bin"
-        output_bin = encParam['encoder_param']['--output']
-
-        if args.enc_mode == "CQP":
-            encParam['encoder_param']['--quality'] = ratio
-        elif args.enc_mode == "CBR":
-            print(f"[ERROR] {encParam['name']} doesn't support {args.enc_mode}")
-        elif args.enc_mode == "CRF":
-            print(f"[ERROR] {encParam['name']} doesn't support {args.enc_mode}")
-        else:
-            print(f"[ERROR] Unsupported encode mode {args.enc_mode}")
-
-    elif encParam['name'] == 'x264':
+    if encParam['name'] == 'x264':
         encParam['video_param']['--input'] = videoPath
         encParam['video_param']['--input-res'] = f"{width}x{height}"
         encParam['encoder_param']['--frames'] = encNumber
@@ -165,33 +175,6 @@ def set_enc_param(encParam, videoType, videoPath, videoName, width, height, bitD
             print(f"[ERROR] {encParam['name']} doesn't support {args.enc_mode}")
         else:
             print(f"[ERROR] Unsupported encode mode {args.enc_mode}")
-
-    elif encParam['name'] == 'svt_av1':
-        encParam['video_param']['--input'] = videoPath
-        encParam['video_param']['--width'] = width
-        encParam['video_param']['--height'] = height
-        encParam['encoder_param']['--frames'] = encNumber
-        encParam['encoder_param']['--recon'] = args.output + f"/{videoType}_{videoName}_{ratio}_{encParam['name']}_enc.yuv"
-        encParam['encoder_param']['--output'] = args.output + f"/{videoType}_{videoName}_{ratio}_{encParam['name']}.bin"
-        output_bin = encParam['encoder_param']['--output']
-
-        if args.enc_mode == "CQP":
-            encParam['encoder_param'].pop('--tbr', None)
-            encParam['encoder_param']['--rc'] = 0
-            encParam['encoder_param']['--aq-mode'] = 0
-            encParam['encoder_param']['--qp'] = ratio
-        elif args.enc_mode == "CBR":
-            encParam['encoder_param']['--rc'] = 2
-            encParam['encoder_param']['--aq-mode'] = 2
-            bitrate = get_bit_rate(width, height, bitDepth, format_, encFps, encNumber, ratio)
-            encParam['encoder_param']['--tbr'] = bitrate
-        elif args.enc_mode == "CRF":
-            encParam['encoder_param'].pop('--tbr', None)
-            encParam['encoder_param']['--rc'] = 0
-            encParam['encoder_param']['--aq-mode'] = 2
-            encParam['encoder_param']['--qp'] = ratio
-        else:
-            print(f"[ERROR] Unsupported encode mode {args.enc_mode}")
     
     elif encParam['name'] == 'aomenc':
         encParam['video_param']['--input'] = videoPath
@@ -223,14 +206,7 @@ def set_enc_param(encParam, videoType, videoPath, videoName, width, height, bitD
 
 
 def cmd_wrapper(command, encParam):
-    if encParam['name'] == 'jpeg':
-        command.extend([str(encParam['video_param']['--input'])])
-        command.extend([str(encParam['video_param']['--input-res'])])
-        command.extend([str(encParam['encoder_param']['--output'])])
-        command.extend([str(encParam['encoder_param']['--quality'])])
-        command.extend([str(encParam['encoder_param']['--optimize'])])
-
-    elif encParam['name'] == 'x264':
+    if encParam['name'] == 'x264':
         # add encoder parameters
         for param, value in encParam['encoder_param'].items():
             command.extend([param, str(value)])
@@ -242,7 +218,7 @@ def cmd_wrapper(command, encParam):
         
         # add video input
         command.extend([str(encParam['video_param']['--input'])])
-    elif encParam['name'] == 'x265' or encParam['name'] == 'svt_av1':
+    elif encParam['name'] == 'x265':
         # add encoder parameters
         for param, value in encParam['encoder_param'].items():
             command.extend([param, str(value)])
@@ -357,51 +333,57 @@ def calc_metric(metric, orig_yuv, dec_yuv, width, height, fps, encFormat, encNum
         ]
         pattern = r"VMAF score\s*:\s*([0-9]+\.[0-9]+)"
 
-    elif metric == "ssimulacra2":
-        # 1) Generate temporary JPEG path
-        orig_jpg  = os.path.splitext(dec_yuv)[0]  + "_orig.jpg"
-        dec_jpg = os.path.splitext(dec_yuv)[0] + "_dec.jpg"
-
-        # 2) Use jpeg to convert YUV → JPEG
-        subprocess.run(
-            ["../bin/jpeg", orig_yuv, f"{width}x{height}", orig_jpg, "100", "1"],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        subprocess.run(
-            ["../bin/jpeg", dec_yuv, f"{width}x{height}", dec_jpg, "100", "1"],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-
-        # 3) Call ssimulacra2, read stdout
-        proc = subprocess.run(
-            ["../bin/ssimulacra2", orig_jpg, dec_jpg],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
-        )
-        # 4) Output should be a pure number, e.g. "81.53383798\n"
-        score = float(proc.stdout.strip())
-
-        # Delete temporary files
-        os.remove(orig_jpg)
-        os.remove(dec_jpg)
-        return score
-
     elif metric == "psnr_hvsm":
         csv_file = os.path.splitext(dec_yuv)[0]
-        # Call VQMT to calculate PSNR-HVSM and generate CSV
+
+        # 1) Generate temporary yuv path, after padding
+        orig_yuv_crop  = os.path.splitext(dec_yuv)[0]  + "_orig.yuv"
+        dec_yuv_crop = os.path.splitext(dec_yuv)[0] + "_dec.yuv"
+        crop_w = (int(width) // 8) * 8
+        crop_h = (int(height) // 8) * 8
+
+        # 2) Use ffmpeg to pad yuv width and height to be divisible by 16
+        if crop_w != int(width) or crop_h != int(height):
+            subprocess.run(
+                ["ffmpeg", "-y", "-s", f"{width}x{height}", "-f", "rawvideo", "-pix_fmt", encFormat,
+                 "-i", orig_yuv, "-vf", f"crop={crop_w}:{crop_h}:x=0:y=0", "-frames:v", str(encNum), 
+                 "-c:v", "rawvideo", "-pix_fmt", encFormat, orig_yuv_crop],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+
+            subprocess.run(
+                ["ffmpeg", "-y", "-s", f"{width}x{height}", "-f", "rawvideo", "-pix_fmt", encFormat,
+                 "-i", dec_yuv, "-vf", f"crop={crop_w}:{crop_h}:x=0:y=0", "-frames:v", str(encNum), 
+                 "-c:v", "rawvideo", "-pix_fmt", encFormat, dec_yuv_crop],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        else:
+            orig_yuv_crop = orig_yuv
+            dec_yuv_crop = dec_yuv
+
+        # Call VQMT to calculate PSNRHVSM and generate CSV
         cmd = [
-            "../bin/vqmt", orig_yuv, dec_yuv,
-            str(height), str(width), str(encNum), "1",
+            "../bin/vqmt", orig_yuv_crop, dec_yuv_crop,
+            str(crop_w), str(crop_h), str(encNum), "1",
             csv_file, "PSNRHVSM"
         ]
-        subprocess.run(cmd, check=True)
-        # Parse average
         score = None
-        with open(csv_file + '_psnrhvsm.csv') as f:
-            for line in f:
-                if line.startswith('average'):
-                    score = float(line.strip().split(',')[1])
-                    break
+        try:
+            subprocess.run(cmd, check=True)
+            with open(csv_file + '_psnrhvsm.csv') as f:
+                for line in f:
+                    if line.startswith('average'):
+                        score = float(line.strip().split(',')[1])
+                        break
+        except subprocess.CalledProcessError:
+            print(f"[ERROR] psnr_hvsm calculation failed for {dec_yuv}")
+
+        # Delete temporary files
+        if crop_w != int(width) or crop_h != int(height):
+            os.remove(orig_yuv_crop)
+            os.remove(dec_yuv_crop)
         os.remove(csv_file + '_psnrhvsm.csv')
+
         return score
 
     elif metric == "ms_ssim":
@@ -471,13 +453,13 @@ def decode_video(encoded_path, encoder_type, pix_fmt, resolution):
     """
     Decode encoder output bitstream file to YUV.
     - encoded_path: e.g. "../../video1_10_x265.bin"
-    - encoder_type: "x264" / "x265" / "svt_av1" / "vvenc"
-    - pix_fmt: value read from CSV format column, e.g. "yuv420p", "yuv420p10le", etc.
+    - encoder_type: "x264" / "x265" / "aomenc" / "vvenc"
+    - pix_fmt: value read from CSV format column, e.g. "yuv420p", etc.
     - resolution: value assembled from CSV, e.g. "1920x1080"
     """
     decoded_path = os.path.splitext(encoded_path)[0] + "_dec.yuv"
 
-    if encoder_type in ["jpeg", "x264", "x265"]:
+    if encoder_type in ["x264", "x265"]:
         cmd = [
             "ffmpeg",
             "-y",                   # Force overwrite
@@ -487,7 +469,7 @@ def decode_video(encoded_path, encoder_type, pix_fmt, resolution):
             "-s", resolution,       # Dynamically specify
             decoded_path
         ]
-    elif encoder_type in ["svt_av1", "aomenc"]:
+    elif encoder_type in ["aomenc"]:
         cmd = [
             "../bin/aomdec",
             "-v", encoded_path,
@@ -572,11 +554,11 @@ def encode_video(key, videoParam, encParam, videoType, args, missing_files):
 
         # Insert into SQLite
         c.execute("""
-            INSERT INTO results (video, enc_ratio, bpp, psnr, psnr_hvsm, ssim, ms_ssim, ssimulacra2, vmaf, vmaf_neg)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO results (video, enc_ratio, bpp, psnr, psnr_hvsm, ssim, ms_ssim, vmaf, vmaf_neg)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             result["video"], result["enc_ratio"], result["bpp"],
-            result.get("psnr"), result.get("psnr_hvsm"), result.get("ssim"), result.get("ms_ssim"), result.get("ssimulacra2"), result.get("vmaf"), result.get("vmaf_neg")
+            result.get("psnr"), result.get("psnr_hvsm"), result.get("ssim"), result.get("ms_ssim"), result.get("vmaf"), result.get("vmaf_neg")
         ))
         conn.commit()
         
@@ -610,7 +592,6 @@ if __name__ == '__main__':
             psnr_hvsm REAL,
             ssim REAL,
             ms_ssim REAL,
-            ssimulacra2 REAL,
             vmaf REAL,
             vmaf_neg REAL
         )

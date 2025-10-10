@@ -8,7 +8,7 @@ import numpy as np
 from pyjnd.models import build_network
 from pyjnd.losses import build_loss
 from pyjnd.metrics import calculate_metric
-from pyjnd.utils import get_root_logger, imwrite, tensor2img, DiffJPEG
+from pyjnd.utils import get_root_logger, imwrite, tensor2img
 from pyjnd.utils.registry import ARCH_REGISTRY
 from .base_learned_jnd_arch import BaseLRModel
 
@@ -23,9 +23,6 @@ class GeneralLRJNDModel(BaseLRModel):
         # define network
         self.precision = self.opt.get('network', {}).get('precision', 'fp32')
         self.net = build_network(opt['network'])
-
-        self.jpeger_train = DiffJPEG(differentiable=True).cuda()
-        self.jpeger_val = DiffJPEG(differentiable=False).cuda()
 
         if self.precision == 'fp16':
             self.scaler = torch.cuda.amp.GradScaler(enabled=True)
@@ -139,9 +136,6 @@ class GeneralLRJNDModel(BaseLRModel):
     def feed_data(self, data):
         self.img_input = data['img'].to(self.device)
 
-        if 'jnd_label' in data:
-            self.gt = data['jnd_label'].to(self.device)
-
         # default use supervised training
         self.supervised = True
         if 'supervised' in self.opt['train']:
@@ -169,53 +163,14 @@ class GeneralLRJNDModel(BaseLRModel):
             else:
                 return net(self.img_input)
 
+    def softclip01(self, x, k: float = 2.0):
+        if not torch.is_floating_point(x):
+            x = x.float()
+        k = torch.as_tensor(k, dtype=x.dtype, device=x.device)
+        return 0.5 * (torch.tanh(k * (x - 0.5)) + 1.0)
+
     def optimize_parameters(self, current_iter):
-        if self.train_target == 'score':
-            return self._optimize_score(current_iter)
-        else:
-            return self._optimize_image(current_iter)
-
-    def _optimize_score(self, current_iter):
-        self.optimizer.zero_grad()
-
-        with torch.cuda.amp.autocast(enabled=(self.precision == 'fp16')):
-            self.output = self.net_forward(self.net)
-            l_total = 0
-            loss_dict = OrderedDict()
-
-            # TODO:: support loss for Label Predict Task
-            # pixel loss
-            if self.cri_fidelity:
-                l_fidelity = self.cri_fidelity(self.output, self.gt)
-                l_total += l_fidelity
-                loss_dict['l_fidelity'] = l_fidelity
-
-            if self.cri_rate:
-                l_rate = self.cri_rate(self.output, self.gt)
-                l_total += l_rate
-                loss_dict['l_rate'] = l_rate
-
-            if self.cri_perceptual:
-                l_perceptual = self.cri_perceptual(self.output, self.gt)
-                l_total += l_perceptual
-                loss_dict['l_perceptual'] = l_perceptual
-
-        if self.precision == 'fp16':
-            self.scaler.scale(l_total).backward()
-            # self.scaler.unscale_(self.optimizer)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-        else:
-            l_total.backward()
-            self.optimizer.step()
-
-        self.log_dict = self.reduce_loss_dict(loss_dict)
-
-        # log metrics in training batch
-        pred = self.output.squeeze(1).cpu().detach().numpy()
-        gt = self.gt.squeeze(1).cpu().detach().numpy()
-        for name, opt_ in self.opt['val']['metrics'].items():
-            self.log_dict[f'train_metrics/{name}'] = calculate_metric([pred, gt], opt_)
+        return self._optimize_image(current_iter)
 
     def _optimize_image(self, current_iter):
         self.optimizer.zero_grad()
@@ -223,15 +178,14 @@ class GeneralLRJNDModel(BaseLRModel):
         with torch.cuda.amp.autocast(enabled=(self.precision == 'fp16')):
             self.output = self.net_forward(self.net)
 
-            pred_jpeg = self.jpeger_train(self.output, quality=80)
             if self.opt['network']['only_train_y']:
                 pred = self.output[:, 0:1, :, :]
-                pred_jpeg = pred_jpeg[:, 0:1, :, :]
-                gt = self.ref_input[:, 0:1, :, :]
+                ref = self.ref_input[:, 0:1, :, :]
+                ori = self.img_input[:, 0:1, :, :]
             else:
                 pred = self.output
-                pred_jpeg = pred_jpeg
-                gt = self.ref_input
+                ref = self.ref_input
+                ori = self.img_input
 
             l_total = 0
             loss_dict = OrderedDict()
@@ -240,21 +194,22 @@ class GeneralLRJNDModel(BaseLRModel):
             if self.cri_fidelity:
                 l_fidelity = 0
                 for loss_fn in self.cri_fidelity:
-                    l_fidelity += loss_fn(pred_jpeg,  gt)
+                    l_fidelity += loss_fn(pred, ref)
                 l_total += l_fidelity
                 loss_dict['l_fidelity'] = l_fidelity
 
             if self.cri_rate:
                 l_rate = 0
                 for loss_fn in self.cri_rate:
-                    l_rate += loss_fn(pred, gt)
+                    l_rate += loss_fn(pred, ori)
                 l_total += l_rate
                 loss_dict['l_rate'] = l_rate
 
             if self.cri_perceptual:
+                pred_sc = self.softclip01(pred)
                 l_perceptual = 0
                 for loss_fn in self.cri_perceptual:
-                    l_perceptual += loss_fn(pred_jpeg, gt)
+                    l_perceptual += loss_fn(pred_sc, ref)
                 l_total += l_perceptual
                 loss_dict['l_perceptual'] = l_perceptual
 
@@ -283,32 +238,31 @@ class GeneralLRJNDModel(BaseLRModel):
         dataset_name = dataloader.dataset.opt['name']
         with_metrics = self.opt['val'].get('metrics') is not None
 
-        # initialize best_val_loss on first call
+        # initialize best_val_loss on first call (for best-loss tracking)
         if not hasattr(self, 'best_val_loss'):
             self.best_val_loss = float('inf')
-        
+
         use_pbar = self.opt['val'].get('pbar', False)
 
+        # metric bookkeeping
         if with_metrics:
-            if not hasattr(self, 'metric_results'):  # only execute in the first run
+            if not hasattr(self, 'metric_results'):  # only first run
                 self.metric_results = {metric: 0 for metric in self.opt['val']['metrics'].keys()}
             # initialize the best metric results for each dataset_name (supporting multiple validation datasets)
             self._initialize_best_metric_results(dataset_name)
-        # zero self.metric_results
-        if with_metrics:
+            # zero current metric_results
             self.metric_results = {metric: 0 for metric in self.metric_results}
 
         if use_pbar:
             pbar = tqdm(total=len(dataloader), unit='image')
 
-        pred, gt, ref_img = [], [], []
-        val_loss_total, val_batches = 0.0, 0
+        pred, ori_img, ref_img = [], [], []
         for idx, val_data in enumerate(dataloader):
             img_name = osp.basename(val_data['img_path'][0])
             self.feed_data(val_data)
             self.test()
             pred.append(self.output)
-            gt.append(self.gt)
+            ori_img.append(self.img_input)
             ref_img.append(self.ref_input)
             if use_pbar:
                 pbar.update(1)
@@ -316,36 +270,18 @@ class GeneralLRJNDModel(BaseLRModel):
         if use_pbar:
             pbar.close()
 
-        if self.train_target == 'score':
-            pred = torch.cat(pred, dim=0).squeeze(1).cpu().numpy()
-            gt = torch.cat(gt, dim=0).squeeze(1).cpu().numpy()
-            if with_metrics:
-                # calculate all metrics
-                for name, opt_ in self.opt['val']['metrics'].items():
-                    self.metric_results[name] = calculate_metric([pred, gt], opt_)
-        
         if self.train_target == 'image':
+            mean_val_loss = None
             if with_metrics:
-                # Prepare a list for each metric to collect values from all images
-                # Assume calculate_metric accepts [pred_img, ref_img] and returns a scalar
                 per_image_results = {name: [] for name in self.opt['val']['metrics'].keys()}
 
-                # Convert pred, ref_img to numpy arrays (if still on GPU Tensor)
                 for p, g in zip(pred, ref_img):
-                    # Adjust according to your data format: here example first squeeze batch dimension
-                    if isinstance(p, torch.Tensor):
-                        p_img = p.squeeze(0).cpu().numpy()
-                    else:
-                        p_img = p
-                    if isinstance(g, torch.Tensor):
-                        g_img = g.squeeze(0).cpu().numpy()
-                    else:
-                        g_img = g
+                    p_img = p.squeeze(0).cpu().numpy() if isinstance(p, torch.Tensor) else p
+                    g_img = g.squeeze(0).cpu().numpy() if isinstance(g, torch.Tensor) else g
 
                     p_img = np.clip(p_img * 255.0, 0, 255).astype(np.uint8)
                     g_img = np.clip(g_img * 255.0, 0, 255).astype(np.uint8)
 
-                    # Calculate for each metric per image
                     for name, opt_ in self.opt['val']['metrics'].items():
                         if self.opt['network']['only_train_y']:
                             val = calculate_metric([p_img[0:1, :, :], g_img[0:1, :, :]], opt_)
@@ -353,67 +289,99 @@ class GeneralLRJNDModel(BaseLRModel):
                             val = calculate_metric([p_img, g_img], opt_)
                         per_image_results[name].append(val)
 
-                # Take mean of each metric list to get final result
                 for name, vals in per_image_results.items():
                     self.metric_results[name] = float(sum(vals) / len(vals))
-            else:
-                # compute validation loss over all batches
-                for out, ref in zip(pred, ref_img):
+
+                val_loss_total, val_batches = 0.0, 0
+                for out, ref, ori in zip(pred, ref_img, ori_img):
                     batch_loss = 0.0
-                    out_jpeg = self.jpeger_val(out, quality=80)
                     if self.opt['network']['only_train_y']:
                         out = out[:, 0:1, :, :]
-                        out_jpeg = out_jpeg[:, 0:1, :, :]
                         ref = ref[:, 0:1, :, :]
+                        ori = ori[:, 0:1, :, :]
 
                     if self.cri_fidelity:
                         for fn in self.cri_fidelity:
-                            batch_loss += fn(out_jpeg, ref).item()
+                            batch_loss += fn(out, ref).item()
                     if self.cri_rate:
                         for fn in self.cri_rate:
-                            batch_loss += fn(out, ref).item()
+                            batch_loss += fn(out, ori).item()
                     if self.cri_perceptual:
+                        out_sc = self.softclip01(out)
                         for fn in self.cri_perceptual:
-                            batch_loss += fn(out_jpeg, ref).item()
+                            batch_loss += fn(out_sc, ref).item()
+
                     val_loss_total += batch_loss
                     val_batches += 1
 
-                # after looping, check for best‐loss
                 if val_batches > 0:
                     mean_val_loss = val_loss_total / val_batches
-                    if mean_val_loss < self.best_val_loss:
-                        self.best_val_loss = mean_val_loss
+
+            else:
+                val_loss_total, val_batches = 0.0, 0
+                for out, ref, ori in zip(pred, ref_img, ori_img):
+                    batch_loss = 0.0
+                    if self.opt['network']['only_train_y']:
+                        out = out[:, 0:1, :, :]
+                        ref = ref[:, 0:1, :, :]
+                        ori = ori[:, 0:1, :, :]
+
+                    if self.cri_fidelity:
+                        for fn in self.cri_fidelity:
+                            batch_loss += fn(out, ref).item()
+                    if self.cri_rate:
+                        for fn in self.cri_rate:
+                            batch_loss += fn(out, ori).item()
+                    if self.cri_perceptual:
+                        out_sc = self.softclip01(out)
+                        for fn in self.cri_perceptual:
+                            batch_loss += fn(out_sc, ref).item()
+
+                    val_loss_total += batch_loss
+                    val_batches += 1
+
+                if val_batches > 0:
+                    mean_val_loss = val_loss_total / val_batches
+
+            if with_metrics:
+                if self.key_metric is not None:
+                    # If the best metric is updated, update and save best model
+                    to_update = self._update_best_metric_result(dataset_name,
+                                                                self.key_metric,
+                                                                self.metric_results[self.key_metric],
+                                                                current_iter)
+                    if to_update:
+                        for name, opt_ in self.opt['val']['metrics'].items():
+                            self._update_metric_result(dataset_name, name, self.metric_results[name], current_iter)
                         self.copy_model(self.net, self.net_best)
                         self.save_network(self.net_best, 'net_best')
-                        get_root_logger().info(
-                            f'New best val loss: {mean_val_loss:.6f} @ iter {current_iter}, saved net_best.'
-                        )
-                                    
-
-        if with_metrics:
-            if self.key_metric is not None:
-                # If the best metric is updated, update and save best model
-                to_update = self._update_best_metric_result(dataset_name, self.key_metric,
-                                                            self.metric_results[self.key_metric], current_iter)
-
-                if to_update:
+                else:
+                    # update each metric separately
                     for name, opt_ in self.opt['val']['metrics'].items():
-                        self._update_metric_result(dataset_name, name, self.metric_results[name], current_iter)
-                    self.copy_model(self.net, self.net_best)
-                    self.save_network(self.net_best, 'net_best')
-            else:
-                # update each metric separately
-                updated = []
-                for name, opt_ in self.opt['val']['metrics'].items():
-                    tmp_updated = self._update_best_metric_result(dataset_name, name, self.metric_results[name],
-                                                                  current_iter)
-                    updated.append(tmp_updated)
-                # save best model if any metric is updated
-                if sum(updated):
-                    self.copy_model(self.net, self.net_best)
-                    self.save_network(self.net_best, 'net_best')
+                        updated = self._update_best_metric_result(dataset_name, name,
+                                                                  self.metric_results[name], current_iter)
+                        if updated:
+                            self.copy_model(self.net, self.net_best)
+                            self.save_network(self.net_best, f'net_best_{name}')
 
-            self._log_validation_metric_values(current_iter, dataset_name, tb_logger)
+                    # save the minimal loss model as net_best_loss
+                    if mean_val_loss is not None and mean_val_loss < self.best_val_loss:
+                        self.best_val_loss = mean_val_loss
+                        self.copy_model(self.net, self.net_best)
+                        self.save_network(self.net_best, 'net_best_loss')
+                        get_root_logger().info(
+                            f'New best val loss: {mean_val_loss:.6f} @ iter {current_iter}, saved net_best_loss.'
+                        )
+            else:
+                if mean_val_loss is not None and mean_val_loss < self.best_val_loss:
+                    self.best_val_loss = mean_val_loss
+                    self.copy_model(self.net, self.net_best)
+                    self.save_network(self.net_best, 'net_best')
+                    get_root_logger().info(
+                        f'New best val loss: {mean_val_loss:.6f} @ iter {current_iter}, saved net_best.'
+                    )
+
+        self._log_validation_metric_values(current_iter, dataset_name, tb_logger)
 
     def _log_validation_metric_values(self, current_iter, dataset_name, tb_logger):
         log_str = f'Validation {dataset_name}\n'

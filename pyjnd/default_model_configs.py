@@ -1,18 +1,17 @@
 from collections import OrderedDict
 
 DEFAULT_CONFIGS = OrderedDict({
-    # ====================Spatial-Domain=========================================
-    'general_spatial_jnd': {
-        'metric_opts': {
-            'type': 'SpatialJNDModel',
-            'effect_yml_path': './options/inference/infer_general_spatial_jnd.yml',
-        }
-    },
     # ====================Frequency-Domain=======================================
     'general_frequency_jnd': {
         'metric_opts': {
             'type': 'FrequencyJNDModel',
             'effect_yml_path': './options/inference/infer_general_frequency_jnd.yml',
+        }
+    },
+    'tcsvt_wei_2009': {
+        'metric_opts': {
+            'type': 'FrequencyJNDModel',
+            'effect_yml_path': './options/inference/infer_tcsvt_wei_2009.yml',
         }
     },
     'spl_bae_2013': {
@@ -34,16 +33,22 @@ DEFAULT_CONFIGS = OrderedDict({
         }
     },
     # ====================Learning-Based=========================================
-    'arxiv_ma_2023': {
+    'ojcas_sun_2024': {
         'metric_opts': {
-            'type': 'RPPNet',
-            'effect_yml_path': './options/inference/infer_arxiv_ma_2023.yml',
+            'type': 'IQNet',
+            'effect_yml_path': './options/inference/infer_ojcas_sun_2024.yml',
         },
     },
-    'puc_he_2025': {
+    'iccv_yan_2025': {
         'metric_opts': {
-            'type': 'PUCNet',
-            'effect_yml_path': './options/inference/infer_puc_he_2025.yml',
+            'type': 'MobileIENet',
+            'effect_yml_path': './options/inference/infer_iccv_yan_2025.yml',
+        },
+    },
+    'iccv_yan_lite_2025': {
+        'metric_opts': {
+            'type': 'MobileIENet_Lite',
+            'effect_yml_path': './options/inference/infer_iccv_yan_lite_2025.yml',
         },
     },
     # ====================Others=================================================

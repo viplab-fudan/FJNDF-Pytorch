@@ -9,16 +9,16 @@ encoder_param:
     --bitrate: 7776 # set by encode.py
     --crf: 23 # set by encode.py
     --output-depth: 8
-    --output: ../../dataset/tmp/svac_beihaihumian_80_x265.265 # set by encode.py
-    --recon: ../../dataset/tmp/svac_beihaihumian_80_x265_enc.yuv # set by encode.py
+    --output: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_x265.bin # set by encode.py
+    --recon: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_x265_enc.yuv # set by encode.py
     --log-level: full
-    --csv: ../../dataset/tmp/svac_beihaihumian_80_x265.csv # set by encode.py
+    --csv: ../../dataset/tmp/hevc_sdr_ctc_Kimono_27_x265.csv # set by encode.py
     --csv-log-level: 2
     --bframes: 0
     --rc-lookahead: 0
     --ref: 1
 
 video_param:
-    --input: ../../dataset/ori/svac/R_1920x1080_beihaihumian_50fps_500.yuv # set by encode.py
-    --input-res: 1920x1080  # set by encode.py
+    --input: ../../dataset/ori/hevc_sdr_ctc/Kimono.yuv # set by encode.py
+    --input-res: 1920x1027  # set by encode.py
     --input-depth: 8

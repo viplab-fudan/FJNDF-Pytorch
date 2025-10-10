@@ -56,16 +56,6 @@ def fuse_jnd_maps(
             w = weights[name]
             result = result + m * w
 
-    elif method =='namm_tmm_wu_2013':
-        jnd_order = weights['LA'] * maps['LA'] + weights['CM'] * maps['CM'] - 0.3 * torch.minimum(maps['LA'], maps['CM'])
-        jnd_disorder = weights['PM'] * maps['PM']
-        result = jnd_order + jnd_disorder - 0.3 * torch.minimum(jnd_order, jnd_disorder)
-
-    elif method =='namm_tip_wu_2017':
-        jnd_VM = torch.maximum(weights['CM'] * maps['CM'], weights['PM'] * maps['PM'])
-        jnd_LA = weights['LA'] * maps['LA']
-        result = jnd_LA + jnd_VM - 0.3 * torch.minimum(jnd_LA, jnd_VM)
-
     else:
         raise ValueError(f"Unsupported fusion method '{method}'")
 

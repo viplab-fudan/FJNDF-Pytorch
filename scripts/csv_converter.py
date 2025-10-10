@@ -4,7 +4,7 @@ csv_converter.py
 
 Convert input CSV (headers: filename,resolution,bitdepth,format,number)
 to output CSV (headers: input_image,reference_image,yuv_width,
-yuv_height,yuv_format,yuv_bitdepth,jnd_mean)
+yuv_height,yuv_format,yuv_bitdepth)
 
 Usage:
     python csv_converter.py input.csv output.csv
@@ -24,7 +24,6 @@ def convert_csv(input_path: str, output_path: str):
             'yuv_height',
             'yuv_format',
             'yuv_bitdepth',
-            'jnd_mean'
         ]
         writer = csv.DictWriter(outf, fieldnames=fieldnames)
         writer.writeheader()
@@ -46,13 +45,12 @@ def convert_csv(input_path: str, output_path: str):
                 'yuv_height': yuv_height,
                 'yuv_format': row.get('format', ''),
                 'yuv_bitdepth': row.get('bitdepth', ''),
-                'jnd_mean': 0
             }
             writer.writerow(out_row)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Convert CSV file format for YUV metadata and add jnd_mean column'
+        description='Convert CSV file format for YUV metadata'
     )
     parser.add_argument('input_csv', help='Input CSV file path')
     parser.add_argument('output_csv', help='Output CSV file path')

@@ -24,21 +24,14 @@ make download_x265
 make update_x265
 ```
 
-### libaom (AV1)
+### libaom
 
 ```bash
 make download_aom
 make update_aom
 ```
 
-### SVT-AV1
-
-```bash
-make download_svt_av1
-make update_svt_av1
-```
-
-### VVenc (VVC)
+### VVenc
 
 ```bash
 make download_vvenc
@@ -62,7 +55,6 @@ Encoding parameters are managed via YAML configuration files located in the cfg/
 * **x264**: cfg/x264.yml
 * **x265**: cfg/x265.yml
 * **libaom**: cfg/aomenc.yml
-* **SVT-AV1**: cfg/svt_av1.yml
 * **vvenc**: cfg/vvenc.yml
 
 In addition, you can refer to help/*.log to find help for encoder configuration
@@ -92,17 +84,17 @@ python3 encode.py \
 
 ```bash
 python3 encode.py \
-  --encoder ../codecs/cfg/x264.yml \
-  --input_csv ../datasets/info/codec/hevc_sdr_ctc_meta_info.csv \
-  --input_dir ../datasets/hevc_sdr_ctc/ori \
+  --encoder ../cfg/x264.yml \
+  --input_csv ../../datasets/info/codec/hevc_sdr_ctc_meta_info.csv \
+  --input_dir ../../datasets/hevc_sdr_ctc/ori \
   --core 4 \
-  --output ../codecs/result/hevc_sdr_ctc/ori/x264 \
+  --output ../result/hevc_sdr_ctc/ori/x264 \
   --metrics psnr psnr_hvsm ssim ms_ssim vmaf vmaf_neg \
-  --db ../codecs/result/hevc_sdr_ctc/ori/x264/result.db \
+  --db ../result/hevc_sdr_ctc/ori/x264/result.db \
   --fps 25 \
   --frame_num 1 \
   --enc_mode CQP \
-  --qp_list 22,27,32,37
+  --qp_list 27,32,37,42
 ```
 
 * `--encoder`: Path to the YAML config defining encoder parameters.
@@ -144,8 +136,8 @@ After batch encoding completes, you can compare the compression efficiency betwe
 ```bash
 python3 calbdrate.py \
   -a ../result/hevc_sdr_ctc/ori/x264/result.db \
-  -t ../result/hevc_sdr_ctc/puc_he_2025/x264/result.db \
-  -o puc_he_2025_x264.csv
+  -t ../result/hevc_sdr_ctc/iccv_yan_lite_2025/x264/result.db \
+  -o hevc_sdr_ctc_iccv_yan_lite_2025_x264.csv
 ```
 
 * `-a <path>`: Path to the **anchor** SQLite result database (baseline encoder results).

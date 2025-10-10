@@ -30,9 +30,6 @@ class BaseJNDDataset(data.Dataset):
         # initialize datasets
         self.init_path_jnd(opt)
 
-        # mos normalization
-        self.jnd_normalize(opt)
-
         # read train/val/test splits
         self.get_split(opt)
 
@@ -80,25 +77,6 @@ class BaseJNDDataset(data.Dataset):
                 if self.meta_info[split_name][i] == self.phase:
                     split_paths_jnd.append(self.paths_jnd[i])
             self.paths_jnd = split_paths_jnd
-            
-    def jnd_normalize(self, opt):
-        jnd_range = opt.get('jnd_range', None)
-        jnd_lower_better = opt.get('lower_better', None)
-        jnd_normalize = opt.get('jnd_normalize', False)
-
-        if jnd_normalize:
-            assert jnd_range is not None and jnd_lower_better is not None, 'jnd_range and jnd_lower_better should be provided when jnd_normalize is True'
-
-            def normalize(jnd_label):
-                jnd_label = (jnd_label - jnd_range[0]) / (jnd_range[1] - jnd_range[0])
-                # convert to higher better if lower better is true
-                if jnd_lower_better:
-                    jnd_label = 1 - jnd_label
-                return jnd_label
-
-            for item in self.paths_jnd:
-                item[1] = normalize(float(item[1]))
-            self.logger.info(f'jnd_label is normalized from {jnd_range}, lower_better[{jnd_lower_better}] to [0, 1], lower_better[False(higher better)].')
 
     def get_transforms(self, opt):
         transform_list = []

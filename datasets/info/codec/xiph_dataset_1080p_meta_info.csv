@@ -1,0 +1,16 @@
+filename,resolution,bitdepth,format,number
+blue_sky_1080p25.yuv,1920x1080,8,yuv420p,217
+crowd_run_1080p50.yuv,1920x1080,8,yuv420p,500
+dinner_1080p30.yuv,1920x1080,8,yuv420p,950
+ducks_take_off_1080p50.yuv,1920x1080,8,yuv420p,500
+factory_1080p30.yuv,1920x1080,8,yuv420p,1339
+in_to_tree_1080p50.yuv,1920x1080,8,yuv420p,500
+life_1080p30.yuv,1920x1080,8,yuv420p,825
+old_town_cross_1080p50.yuv,1920x1080,8,yuv420p,500
+park_joy_1080p50.yuv,1920x1080,8,yuv420p,500
+pedestrian_area_1080p25.yuv,1920x1080,8,yuv420p,375
+riverbed_1080p25.yuv,1920x1080,8,yuv420p,250
+rush_hour_1080p25.yuv,1920x1080,8,yuv420p,500
+station2_1080p25.yuv,1920x1080,8,yuv420p,313
+sunflower_1080p25.yuv,1920x1080,8,yuv420p,500
+tractor_1080p25.yuv,1920x1080,8,yuv420p,690

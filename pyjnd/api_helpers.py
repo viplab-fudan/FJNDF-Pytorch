@@ -18,6 +18,7 @@ def get_model(cfg, device=None):
     model = create_metric(cfg['name'], device=device, precision=cfg['precision'])
     if 'pretrained_model_path' in cfg:
         model.load_weights(cfg['pretrained_model_path'])
+    model.net.eval()
     return model
 
 def _natural_key(string_):

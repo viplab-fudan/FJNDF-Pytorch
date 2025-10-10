@@ -67,7 +67,6 @@ class InferenceModel(torch.nn.Module):
         
         self.net = build_network(net_opts, precision=self.precision)
         self.net = self.net.to(self.device)
-        self.net.eval()
 
         self.seed = seed
 
@@ -81,7 +80,7 @@ class InferenceModel(torch.nn.Module):
             assert isinstance(x, torch.Tensor), 'Input must be a torch.Tensor'
             network_type = DEFAULT_CONFIGS[self.metric_name]['metric_opts']['type']
 
-            if network_type in ['FrequencyJNDModel', 'SpatialJNDModel', 'TopDownJNDModel']:
+            if network_type in ['FrequencyJNDModel', 'TopDownJNDModel']:
                 if x.dim() == 4:
                     x = x.squeeze(0)
                 assert x.dim() == 3, f'For {network_type!s}, Input must be 3D tensor (C, H, W)'
