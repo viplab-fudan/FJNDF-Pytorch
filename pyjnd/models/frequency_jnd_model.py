@@ -289,7 +289,7 @@ class FrequencyJNDModel(nn.Module):
                             W_type[m <= 2] = 1.0
                             W_type[(m >= 3) & (m <= 5)] = 2.0
                         
-                        alpha = 1.0 - (W_type * W_freq) / 64.0
+                        alpha = (W_type * W_freq) / 64.0
                         alpha = alpha.clamp(0.0, 1.0)
                         
                         # Reduce magnitude based on the threshold

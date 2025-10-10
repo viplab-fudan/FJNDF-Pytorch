@@ -18,11 +18,25 @@ ENCODE_LIST=(
 # Dataset list (serial)
 DATASET_LIST=(
   ori
+  tcsvt_wei_2009_filter_1
+  tcsvt_wei_2009_filter_2
+  tcsvt_wei_2009_filter_3
+  tcsvt_wei_2009_filter_4
+  spl_bae_2013_filter_1
+  spl_bae_2013_filter_2
+  spl_bae_2013_filter_3
+  spl_bae_2013_filter_4
+  tip_bae_2016_filter_1
+  tip_bae_2016_filter_2
+  tip_bae_2016_filter_3
   tip_bae_2016_filter_4
+  tob_kang_2023_filter_1
+  tob_kang_2023_filter_2
   tob_kang_2023_filter_3
-  ojcas_sun_2024_filter
-  iccv_yan_2025_filter
-  iccv_yan_lite_2025_filter
+  tob_kang_2023_filter_4
+  ojcas_sun_2024
+  iccv_yan_2025
+  iccv_yan_lite_2025
 )
 
 # Common parameters

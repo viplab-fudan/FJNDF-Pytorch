@@ -260,7 +260,7 @@ class TCSVT_Wei_2009_CM(FrequencyEffectBase):
                                 clipped = min(4.0, max(1.0, pow_r))
                             F_contrast_val = psi * clipped
 
-                        contrast_map[row + i, col + j] = F_contrast_val
+                        contrast_map[row + i, col + j] = float(F_contrast_val)
 
         return contrast_map
 

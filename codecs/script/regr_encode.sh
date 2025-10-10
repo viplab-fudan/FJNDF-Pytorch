@@ -37,9 +37,9 @@ DATASET_LIST=(
   # tob_kang_2023_filter_2
   # tob_kang_2023_filter_3
   # tob_kang_2023_filter_4
-  # ojcas_sun_2024_filter
-  # iccv_yan_2025_filter
-  # iccv_yan_lite_2025_filter
+  # ojcas_sun_2024
+  # iccv_yan_2025
+  # iccv_yan_lite_2025
 )
 
 # Common parameters

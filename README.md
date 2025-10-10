@@ -26,10 +26,10 @@ The architecture of our FJNDF-Pytorch framework is illustrated in the figure abo
 
 ## 🛠️ Environment Setup
 
-This project is developed with **Python 3.8**. We recommend using a virtual environment (e.g., `virtualenv` or `conda`) to avoid dependency conflicts.
+This project is developed with **Python 3.9**. We recommend using a virtual environment (e.g., `virtualenv` or `conda`) to avoid dependency conflicts.
 
 ```bash
-conda create -n myenv python=3.8 -y
+conda create -n myenv python=3.9 -y
 conda activate myenv
 pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
@@ -170,8 +170,8 @@ You can refer to [`divkon_2k_yuv_meta_info.csv`](datasets/info/train/divkon_2k_y
 You need to prepare a dataset split file to define the training, validation, and test sets. You can use our provided script, [`csv_to_random_split_pkl.py`](scripts/csv_to_random_split_pkl.py), to easily accomplish this. The specific command is as follows:
 ```bash
 python3 csv_to_random_split_pkl.py \
-  --csv datasets/info/train/divkon_2k_yuv_meta_info.csv \
-  --output datasets/info/train/divkon_2k_yuv_5_splits.pkl \
+  --csv ../datasets/info/train/divkon_2k_yuv_meta_info.csv \
+  --output ../datasets/info/train/divkon_2k_yuv_5_splits.pkl \
   --splits 5 \
   --seed 42 \
   --train_ratio 0.90 \

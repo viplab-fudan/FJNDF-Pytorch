@@ -364,7 +364,7 @@ def calc_metric(metric, orig_yuv, dec_yuv, width, height, fps, encFormat, encNum
         # Call VQMT to calculate PSNRHVSM and generate CSV
         cmd = [
             "../bin/vqmt", orig_yuv_crop, dec_yuv_crop,
-            str(crop_w), str(crop_h), str(encNum), "1",
+            str(crop_h), str(crop_w), str(encNum), "1",
             csv_file, "PSNRHVSM"
         ]
         score = None
@@ -417,7 +417,7 @@ def calc_metric(metric, orig_yuv, dec_yuv, width, height, fps, encFormat, encNum
         # Call VQMT to calculate MSSSIM and generate CSV
         cmd = [
             "../bin/vqmt", orig_yuv_crop, dec_yuv_crop,
-            str(crop_w), str(crop_h), str(encNum), "1",
+            str(crop_h), str(crop_w), str(encNum), "1",
             csv_file, "MSSSIM"
         ]
         score = None
