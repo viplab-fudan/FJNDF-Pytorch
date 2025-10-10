@@ -199,11 +199,11 @@ class GeneralLRJNDModel(BaseLRModel):
                 loss_dict['l_fidelity'] = l_fidelity
 
             if self.cri_cons:
-                l_rate = 0
+                l_cons = 0
                 for loss_fn in self.cri_cons:
-                    l_rate += loss_fn(pred, ori)
-                l_total += l_rate
-                loss_dict['l_rate'] = l_rate
+                    l_cons += loss_fn(pred, ori)
+                l_total += l_cons
+                loss_dict['l_cons'] = l_cons
 
             if self.cri_perceptual:
                 pred_sc = self.softclip01(pred)

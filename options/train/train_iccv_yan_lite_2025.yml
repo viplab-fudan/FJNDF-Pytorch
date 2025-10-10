@@ -85,7 +85,7 @@ train:
     - type: FrequencyDomainResidualLoss
       loss_weight: !!float 0.02
 
-  constraint_loss_opts:
+  constraint_loss_opt:
     - type: FrequencyConservationConstraintLoss
       loss_weight: !!float 0.02
       zigzag_cutoff: 10
