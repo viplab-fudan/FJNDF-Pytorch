@@ -1,0 +1,138 @@
+# general settings
+name: train_RPPNet_DIVKON2K
+arch_type: GeneralLRJNDModel
+num_gpu: 1  # set num_gpu: 0 for cpu mode
+manual_seed: 123
+split_num: 1
+save_final_results_path: './experiments/RPPNet_DIVKON2K_10splits_results.txt'
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: general_jnd_dataset
+    type: GeneralFRDataset
+
+    dataroot_in: ./datasets/divkon_2k_yuv/ori
+    dataroot_ref: ./datasets/divkon_2k_yuv/usm_sharpen
+    meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
+    split_file: ./datasets/info/train/divkon_2k_yuv_10_splits.pkl
+    split_index: 1
+
+    augment:
+      random_crop: 192
+    img_range: 1
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 32
+    batch_size_per_gpu: 64
+    dataset_enlarge_ratio: 1
+    prefetch_mode: ~
+
+  val:
+    name: general_jnd_dataset
+    type: GeneralFRDataset
+
+    dataroot_in: ./datasets/divkon_2k_yuv/ori
+    dataroot_ref: ./datasets/divkon_2k_yuv/usm_sharpen
+    meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
+    split_file: ./datasets/info/train/divkon_2k_yuv_10_splits.pkl
+    split_index: 1
+
+# network structures
+network:
+  type: RPPNet
+  in_channels: 3
+  downscale_factor: 4
+  num_features: 16
+  num_modules: 3
+  only_train_y: true
+
+# path
+path:
+  pretrain_network_g: ~
+  strict_load_g: true
+  resume_state: ~
+
+# training settings
+train:
+  target: image
+
+  supervised: true
+
+  optim:
+    type: Adam
+    lr: !!float 1e-3
+    weight_decay: !!float 1e-4
+
+  optim_finetune:
+    type: Adam
+    lr: !!float 1e-5
+    weight_decay: !!float 5e-4
+
+  scheduler:
+    type: MultiStepLR
+    milestones: [100]  
+    gamma: 0.1
+
+  scheduler_finetune:
+    type: MultiStepLR
+    milestones: [1000]
+    gamma: 1
+
+  total_epoch: 200
+  # total_iter: 25000
+
+  warmup_iter: -1  # no warm up
+
+  # losses
+  fidelity_loss_opt:
+    - type: MsssimLoss
+      loss_weight: !!float 0.1
+    - type: L1Loss
+      loss_weight: !!float 1.0
+  
+  rate_loss_opt:
+     - type: Dct8Loss
+       loss_weight: !!float 8
+     - type: Dct16Loss
+       loss_weight: !!float 8
+
+  perceptual_loss_opt:
+    # - type: DlmLoss
+    #   loss_weight: !!float 0.1
+    # - type: VifLoss
+    #   loss_weight: !!float 0.1
+    #   lower_better: true
+    #   loss_weight: !!float 1.0
+
+# validation settings
+val:
+  val_freq: !!float 1000
+  save_img: false
+  pbar: true
+
+  key_metric: psnr # if this metric improve, update all metrics. If not specified, each best metric results will be updated separately
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: true
+    ssim: # metric name, can be arbitrary
+      type: calculate_ssim
+      crop_border: 0
+      test_y_channel: true
+
+# logging settings
+logger:
+  print_freq: 100
+  save_latest_freq: !!float 69000
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500

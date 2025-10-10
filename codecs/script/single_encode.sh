@@ -1,0 +1,11 @@
+python3 encode.py --encoder ../codecs/cfg/x264.yml \
+--input_csv ../datasets/info/codec/hevc_sdr_ctc_meta_info.csv \
+--input_dir ../datasets/hevc_sdr_ctc/ori \
+--core 4 \
+--output ../codecs/result/hevc_sdr_ctc/ori/x264 \
+--metrics psnr psnr_hvsm ssim ms_ssim vmaf vmaf_neg \
+--db ../codecs/result/hevc_sdr_ctc/ori/x264/result.db \
+--fps 25 \
+--frame_num 1 \
+--enc_mode CQP \
+--qp_list 22,27,32,37

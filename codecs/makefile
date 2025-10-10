@@ -1,0 +1,219 @@
+#!/bin/bash
+
+#*** PARAMETER *****************************************************************
+#--- GLOBAL ----------------------------
+DIR_BINARY  = ./bin
+DIR_JPEG    = ./source/jpeg
+DIR_X264    = ./source/x264
+DIR_X265    = ./source/x265
+DIR_AOM     = ./source/aom
+DIR_SVT_AV1 = ./source/svt_av1
+DIR_VVENC   = ./source/vvenc
+DIR_VVDEC   = ./source/vvdec
+
+NAME_ENC_JPEG = jpeg
+NAME_ENC_X264 = x264
+NAME_ENC_X265 = x265
+NAME_ENC_AOM  = aomenc
+NAME_ENC_SVT_AV1 = svt_av1
+NAME_ENC_VVENC = vvenc
+NAME_DEC_AOM  = aomdec
+NAME_DEC_VVDEC = vvdec
+
+#--- LOCAL -----------------------------
+
+
+#--- DERIVED ---------------------------
+
+
+#*** USAGE *********************************************************************
+default:
+	@	echo "TARGETS                                                                        "
+	@	echo "    download:    download all en/decoders under source dir                     "
+	@	echo "		download_jpeg   :   download jpeg encoder 								 "
+	@	echo "    	download_x264   :   download x264 encoder                                "
+	@	echo "		download_x265   :   download x265 encoder                                "
+	@	echo "    	download_aom    :   download aom encoder                                 "
+	@	echo "    	download_svt_av1:   download svt_av1 encoder                             "
+	@	echo "    	download_vvenc  :   download vvenc encoder                               "
+	@	echo "    	download_vvdec  :   download vvdec decoder                               "
+	@	echo "    update:    build all en/decoders bianry file under bin dir                 "
+	@	echo "    	update_jpeg   :   build jpeg encoder                                     "
+	@	echo "    	update_x264   :   build x264 encoder                                     "
+	@	echo "		update_x265   :   build x265 encoder                                     "
+	@	echo "    	update_aom    :   build aom en/decoder                                   "
+	@	echo "    	update_svt_av1:   build svt_av1 encoder                                  "
+	@	echo "    	update_vvenc  :   build vvenc encoder                                    "
+	@	echo "    	update_vvdec  :   build vvdec decoder                                    "
+	@	echo "    check:    check version of all encoders under codec dir                    "
+	@	echo "    	check_jpeg   :   check_version of jpeg encoder                           "
+	@	echo "    	check_x264   :   check_version of x264 encoder                           "
+	@	echo "    	check_x265   :   check_version of x265 encoder                           "
+	@	echo "    	check_aom    :   check_version of aom  en/decoder                        "
+	@	echo "    	check_svt_av1:   check_version of svt_av1 encoder                        "
+	@	echo "    	check_vvenc  :   check_version of vvenc encoder                          "
+	@	echo "    	check_vvdec  :   check_version of vvdec decoder                          "
+	@	echo "                                                                               "
+	@	echo "                                                                               "
+
+
+#*** MAIN BODY *****************************************************************
+#--- NORMAL TARGETS --------------------
+
+
+
+#--- TOOL TARGETS ----------------------
+download_jpeg:
+	@	git clone https://github.com/libjpeg-turbo/libjpeg-turbo.git $(DIR_JPEG)
+
+download_x264:
+	@	git clone https://code.videolan.org/videolan/x264.git $(DIR_X264)
+
+download_x265:
+	@	git clone https://bitbucket.org/multicoreware/x265_git.git $(DIR_X265)
+
+download_aom:
+	@	git clone https://aomedia.googlesource.com/aom $(DIR_AOM)
+
+download_svt_av1:
+	@	git clone https://gitlab.com/AOMediaCodec/SVT-AV1.git $(DIR_SVT_AV1)
+
+download_vvenc:
+	@	git clone https://github.com/fraunhoferhhi/vvenc.git $(DIR_VVENC)
+
+download_vvdec:
+	@	git clone https://github.com/fraunhoferhhi/vvdec.git $(DIR_VVDEC)
+
+download:
+	@	make download_jpeg
+	@	make download_x264
+	@	make download_x265
+	@	make download_aom
+	@	make download_svt_av1
+	@	make download_vvenc
+	@	make download_vvdec
+
+check_jpeg:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_ENC_JPEG)
+
+check_x264:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_ENC_X264) --version
+
+check_x265:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_ENC_X265) --version
+
+check_aom:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_ENC_AOM) -v ;\
+		./$(NAME_DEC_AOM) -v ;\
+
+check_svt_av1:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_ENC_SVT_AV1) --version
+
+check_vvenc:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_ENC_VVENC) --version
+
+check_vvdec:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_DEC_VVDEC) --version
+
+check:
+	@	make check_jpeg
+	@	make check_x264
+	@	make check_x265
+	@	make check_aom
+	@	make check_svt_av1
+	@	make check_vvenc
+	@   make check_vvdec
+
+update_jpeg:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_JPEG) ;\
+		mkdir -p build ;\
+		cd build ;\
+		cmake -DCMAKE_BUILD_TYPE=Release .. ;\
+		make -j8 ;\
+		make install
+	@ 	gcc -O3 -Wall source/yuv2jpeg.c \
+		-I/opt/libjpeg-turbo/include \
+		-L/opt/libjpeg-turbo/lib64 -Wl,-rpath,/opt/libjpeg-turbo/lib64 -lturbojpeg \
+		-o jpeg
+	@	mv jpeg $(DIR_BINARY)
+
+update_x264:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_X264) ;\
+		./configure --enable-shared --enable-static
+	@	cd $(DIR_X264) ;\
+		make -j8 ;\
+	@	cp $(DIR_X264)/$(NAME_ENC_X264) $(DIR_BINARY)/$(NAME_ENC_X264) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_ENC_X264)
+	@	make check_x264
+
+update_x265:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_X265)/build/linux ;\
+		cmake -G "Unix Makefiles" ../../source
+	@	cd $(DIR_X265)/build/linux ;\
+		make -j8 ;\
+	@	cp $(DIR_X265)/build/linux/$(NAME_ENC_X265) $(DIR_BINARY)/$(NAME_ENC_X265) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_ENC_X265)
+	@	make check_x265
+
+update_aom:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_AOM) ;\
+	    make build
+	@	cd $(DIR_AOM)/build ;\
+		cmake -DCMAKE_BUILD_TYPE=Release .. ;\
+		make -j8 ;\
+	@	cp $(DIR_AOM)/build/$(NAME_ENC_AOM) $(DIR_BINARY)/$(NAME_ENC_AOM)
+		cp $(DIR_AOM)/build/$(NAME_DEC_AOM) $(DIR_BINARY)/$(NAME_DEC_AOM)
+		chmod +x $(DIR_BINARY)/$(NAME_ENC_AOM)
+		chmod +x $(DIR_BINARY)/$(NAME_DEC_AOM)
+	@	make check_aom
+
+update_svt_av1:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_SVT_AV1)/Build/linux ;\
+	    ./build.sh release
+	@	cp $(DIR_SVT_AV1)/Bin/Release/SvtAv1EncApp $(DIR_BINARY)/$(NAME_ENC_SVT_AV1) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_ENC_SVT_AV1)
+	@	make check_svt_av1
+
+update_vvenc:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_VVENC) ;\
+	    mkdir -p build
+	@	cd $(DIR_VVENC)/build/ ;\
+		cmake ..
+	@	cd $(DIR_VVENC)/build/ ;\
+		make -j8 ;\
+	@	cp $(DIR_VVENC)/bin/release-static/vvencFFapp $(DIR_BINARY)/$(NAME_ENC_VVENC) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_ENC_VVENC)
+	@	make check_vvenc
+
+update_vvdec:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_VVDEC) ;\
+	    mkdir -p build
+	@	cd $(DIR_VVDEC)/build/ ;\
+		cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=1 -DVVDEC_INSTALL_VVDECAPP=ON .. ;\
+		make -j8 ;\
+	@	cp $(DIR_VVDEC)/bin/release-shared/vvdecapp $(DIR_BINARY)/$(NAME_DEC_VVDEC) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_DEC_VVDEC)
+	@	make check_vvdec
+
+update:
+	@   mkdir -p $(DIR_BINARY)
+	@	make update_jpeg
+	@   make update_x264
+	@	make update_x265
+	@	make update_svt_av1
+	@	make update_vvenc
+	@   make update_vvdec

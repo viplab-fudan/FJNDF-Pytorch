@@ -1,0 +1,12 @@
+name: puc_he_2025
+type: PUCNet
+
+normalized: True
+
+in_channels: 3
+downscale_factor: 4
+only_train_y: True
+precision: fp32
+
+pretrained: True
+pretrained_model_path: ./weights/net_best_v0625_l1loss_centercrop_filter_2.pth # change it to your own weight file

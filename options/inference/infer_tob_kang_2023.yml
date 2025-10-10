@@ -1,0 +1,53 @@
+name: tob_kang_2023
+type: FrequencyJNDModel
+
+transform: dct2d_8x8
+block_sz: 8
+
+channel: 'Y'
+normalized: False
+
+target: 2
+seed: 123
+
+precision: fp32
+
+effect:
+  - type: CSF
+    model: TOBkang2023
+    weight: 1.0
+    params:
+      s: 1.0
+      dct_size: 8
+      r_vh: 1.75
+      screen_h: 1080
+
+  - type: LA
+    model: TOBkang2023
+    weight: 1.0
+    params:
+      threshold_split: 0.3
+      dct_size: 8
+      r_vh: 1.75
+      screen_h: 1080
+
+  - type: CM
+    model: TOBkang2023
+    weight: 1.0
+    params:
+      threshold_split: 0.2
+      dct_size: 8
+      r_vh: 1.75
+      screen_h: 1080
+
+  - type: SA
+    model: TOBkang2023
+    weight: 1.0
+    params:
+       pixel_pitch: 0.0006349
+       viewing_distance: 1.2
+       dct_size: 8
+       saliency_model: spectral
+
+fusion:
+  method: product

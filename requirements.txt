@@ -1,0 +1,16 @@
+PyYAML
+opencv-contrib-python-headless
+Requests
+tqdm
+torch_dct
+pandas
+decord
+bjontegaard
+onnx
+onnxruntime
+typing
+pytorch_wavelets
+PyWavelets
+pytorch_msssim
+pyiqa
+piq

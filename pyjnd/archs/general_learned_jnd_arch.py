@@ -1,0 +1,435 @@
+import torch
+from torch import nn as nn
+from collections import OrderedDict
+from os import path as osp
+from tqdm import tqdm
+import numpy as np
+
+from pyjnd.models import build_network
+from pyjnd.losses import build_loss
+from pyjnd.metrics import calculate_metric
+from pyjnd.utils import get_root_logger, imwrite, tensor2img, DiffJPEG
+from pyjnd.utils.registry import ARCH_REGISTRY
+from .base_learned_jnd_arch import BaseLRModel
+
+
+@ARCH_REGISTRY.register()
+class GeneralLRJNDModel(BaseLRModel):
+    """General module to train an JND network."""
+
+    def __init__(self, opt):
+        super(GeneralLRJNDModel, self).__init__(opt)
+
+        # define network
+        self.precision = self.opt.get('network', {}).get('precision', 'fp32')
+        self.net = build_network(opt['network'])
+
+        self.jpeger_train = DiffJPEG(differentiable=True).cuda()
+        self.jpeger_val = DiffJPEG(differentiable=False).cuda()
+
+        if self.precision == 'fp16':
+            self.scaler = torch.cuda.amp.GradScaler(enabled=True)
+        else:
+            self.scaler = torch.cuda.amp.GradScaler(enabled=False)
+
+        self.net = self.model_to_device(self.net)
+        self.print_network(self.net)
+        # load pretrained models
+        load_path = self.opt['path'].get('pretrain_network_g', None)
+        if load_path is not None:
+            param_key = self.opt['path'].get('param_key_g', 'params')
+            self.load_network(self.net, load_path, self.opt['path'].get('strict_load_g', True), param_key)
+
+        if self.is_train:
+            self.init_training_settings()
+
+    def init_training_settings(self):
+        self.net.train()
+        train_opt = self.opt['train']
+
+        self.net_best = build_network(self.opt['network']).to(self.device)
+
+        # define fidelity losses, such as l1 loss, mse loss
+        f_opt = train_opt.get('fidelity_loss_opt')
+        if f_opt:
+            if isinstance(f_opt, dict):
+                f_opt = [f_opt]
+            losses = []
+            for opt in f_opt:
+                losses.append(build_loss(opt).to(self.device))
+            self.cri_fidelity = nn.ModuleList(losses)
+        else:
+            self.cri_fidelity = None
+
+        # define rate losses, such as si loss, si contrast loss
+        f_opt = train_opt.get('rate_loss_opt')
+        if f_opt:
+            if isinstance(f_opt, dict):
+                f_opt = [f_opt]
+            losses = []
+            for opt in f_opt:
+                losses.append(build_loss(opt).to(self.device))
+            self.cri_rate = nn.ModuleList(losses)
+        else:
+            self.cri_rate = None
+
+        # define perceptual losses, such as vgg feature loss, lpips loss
+        f_opt = train_opt.get('perceptual_loss_opt')
+        if f_opt:
+            if isinstance(f_opt, dict):
+                f_opt = [f_opt]
+            losses = []
+            for opt in f_opt:
+                losses.append(build_loss(opt).to(self.device))
+            self.cri_perceptual = nn.ModuleList(losses)
+        else:
+            self.cri_perceptual = None
+
+        # set up optimizers and schedulers
+        self.setup_optimizers()
+        self.setup_schedulers()
+
+    def setup_optimizers(self):
+        train_opt = self.opt['train']
+        optim_opt = train_opt['optim']
+
+        param_dict = {k: v for k, v in self.net.named_parameters()}
+        param_keys = list(param_dict.keys())
+        # set different lr for different modules if needed, e.g., lr_backbone, lr_head
+        lr_keys = [i for i in optim_opt.keys() if i.startswith('lr_')]
+
+        optim_params = []
+        for key in lr_keys:
+            if key.startswith('lr_'):
+                module_key = key.replace('lr_', '')
+                logger = get_root_logger()
+                logger.info(f'Set optimizer for {module_key} with lr: {optim_opt[key]}, weight_decay: {optim_opt.get(f"weight_decay_{module_key}", 0.)}')
+
+                optim_params.append({
+                    'params': [param_dict[k] for k in param_keys if module_key in k and param_dict[k].requires_grad],
+                    'lr': optim_opt.pop(key, 0.),
+                    'weight_decay': optim_opt.pop(f'weight_decay_{module_key}', 0.),
+                })
+
+                # should use param_keys[:] to avoid iteration error
+                for k in param_keys[:]:
+                    if module_key in k:
+                        param_keys.remove(k)
+        
+        # append the rest of the parameters
+        optim_params.append({
+            'params': [param_dict[k] for k in param_keys if param_dict[k].requires_grad],
+        })
+
+        # log params that will not be optimized
+        for k, v in param_dict.items():
+            if not v.requires_grad:
+                logger = get_root_logger()
+                logger.warning(f'Params {k} will not be optimized.')
+        
+        # remove blank param list
+        for k in optim_params:
+            if len(k['params']) == 0:
+                optim_params.remove(k)
+
+        optim_type = train_opt['optim'].pop('type')
+        self.optimizer = self.get_optimizer(optim_type, optim_params, **train_opt['optim'])
+        self.optimizers.append(self.optimizer)
+    
+    def feed_data(self, data):
+        self.img_input = data['img'].to(self.device)
+
+        if 'jnd_label' in data:
+            self.gt = data['jnd_label'].to(self.device)
+
+        # default use supervised training
+        self.supervised = True
+        if 'supervised' in self.opt['train']:
+            self.supervised = self.opt['train']['supervised']
+        
+        if self.supervised:
+            if 'ref_img' in data:
+                self.ref_input = data['ref_img'].to(self.device)
+            else:
+                raise ValueError(f"Supervised traning strategies requires reference images as ground truth!")
+        else:
+            self.ref_input = self.img_input
+
+        # if 'use_ref' in self.opt['train']:
+        #     self.use_ref = self.opt['train']['use_ref']
+        self.use_ref = False
+
+    def net_forward(self, net):
+        # current version only support origin image as input
+        # TODO: support another data input, but it must can't be self.ref_input, 
+        # TODO: as ref_input is used as ground truth under supervised training
+        with torch.cuda.amp.autocast(enabled=(self.precision == 'fp16')):
+            if self.use_ref:
+                return net(self.img_input, self.ref_input)
+            else:
+                return net(self.img_input)
+
+    def optimize_parameters(self, current_iter):
+        if self.train_target == 'score':
+            return self._optimize_score(current_iter)
+        else:
+            return self._optimize_image(current_iter)
+
+    def _optimize_score(self, current_iter):
+        self.optimizer.zero_grad()
+
+        with torch.cuda.amp.autocast(enabled=(self.precision == 'fp16')):
+            self.output = self.net_forward(self.net)
+            l_total = 0
+            loss_dict = OrderedDict()
+
+            # TODO:: support loss for Label Predict Task
+            # pixel loss
+            if self.cri_fidelity:
+                l_fidelity = self.cri_fidelity(self.output, self.gt)
+                l_total += l_fidelity
+                loss_dict['l_fidelity'] = l_fidelity
+
+            if self.cri_rate:
+                l_rate = self.cri_rate(self.output, self.gt)
+                l_total += l_rate
+                loss_dict['l_rate'] = l_rate
+
+            if self.cri_perceptual:
+                l_perceptual = self.cri_perceptual(self.output, self.gt)
+                l_total += l_perceptual
+                loss_dict['l_perceptual'] = l_perceptual
+
+        if self.precision == 'fp16':
+            self.scaler.scale(l_total).backward()
+            # self.scaler.unscale_(self.optimizer)
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            l_total.backward()
+            self.optimizer.step()
+
+        self.log_dict = self.reduce_loss_dict(loss_dict)
+
+        # log metrics in training batch
+        pred = self.output.squeeze(1).cpu().detach().numpy()
+        gt = self.gt.squeeze(1).cpu().detach().numpy()
+        for name, opt_ in self.opt['val']['metrics'].items():
+            self.log_dict[f'train_metrics/{name}'] = calculate_metric([pred, gt], opt_)
+
+    def _optimize_image(self, current_iter):
+        self.optimizer.zero_grad()
+    
+        with torch.cuda.amp.autocast(enabled=(self.precision == 'fp16')):
+            self.output = self.net_forward(self.net)
+
+            pred_jpeg = self.jpeger_train(self.output, quality=80)
+            if self.opt['network']['only_train_y']:
+                pred = self.output[:, 0:1, :, :]
+                pred_jpeg = pred_jpeg[:, 0:1, :, :]
+                gt = self.ref_input[:, 0:1, :, :]
+            else:
+                pred = self.output
+                pred_jpeg = pred_jpeg
+                gt = self.ref_input
+
+            l_total = 0
+            loss_dict = OrderedDict()
+        
+            # pixel loss
+            if self.cri_fidelity:
+                l_fidelity = 0
+                for loss_fn in self.cri_fidelity:
+                    l_fidelity += loss_fn(pred_jpeg,  gt)
+                l_total += l_fidelity
+                loss_dict['l_fidelity'] = l_fidelity
+
+            if self.cri_rate:
+                l_rate = 0
+                for loss_fn in self.cri_rate:
+                    l_rate += loss_fn(pred, gt)
+                l_total += l_rate
+                loss_dict['l_rate'] = l_rate
+
+            if self.cri_perceptual:
+                l_perceptual = 0
+                for loss_fn in self.cri_perceptual:
+                    l_perceptual += loss_fn(pred_jpeg, gt)
+                l_total += l_perceptual
+                loss_dict['l_perceptual'] = l_perceptual
+
+        if self.precision == 'fp16':
+            self.scaler.scale(l_total).backward()
+            # self.scaler.unscale_(self.optimizer)
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            l_total.backward()
+            self.optimizer.step()
+
+        self.log_dict = self.reduce_loss_dict(loss_dict)
+        
+    def test(self):
+        self.net.eval()
+        with torch.no_grad():
+            self.output = self.net_forward(self.net)
+        self.net.train()
+
+    def dist_validation(self, dataloader, current_iter, tb_logger, save_img):
+        if self.opt['rank'] == 0:
+            self.nondist_validation(dataloader, current_iter, tb_logger, save_img)
+
+    def nondist_validation(self, dataloader, current_iter, tb_logger, save_img):
+        dataset_name = dataloader.dataset.opt['name']
+        with_metrics = self.opt['val'].get('metrics') is not None
+
+        # initialize best_val_loss on first call
+        if not hasattr(self, 'best_val_loss'):
+            self.best_val_loss = float('inf')
+        
+        use_pbar = self.opt['val'].get('pbar', False)
+
+        if with_metrics:
+            if not hasattr(self, 'metric_results'):  # only execute in the first run
+                self.metric_results = {metric: 0 for metric in self.opt['val']['metrics'].keys()}
+            # initialize the best metric results for each dataset_name (supporting multiple validation datasets)
+            self._initialize_best_metric_results(dataset_name)
+        # zero self.metric_results
+        if with_metrics:
+            self.metric_results = {metric: 0 for metric in self.metric_results}
+
+        if use_pbar:
+            pbar = tqdm(total=len(dataloader), unit='image')
+
+        pred, gt, ref_img = [], [], []
+        val_loss_total, val_batches = 0.0, 0
+        for idx, val_data in enumerate(dataloader):
+            img_name = osp.basename(val_data['img_path'][0])
+            self.feed_data(val_data)
+            self.test()
+            pred.append(self.output)
+            gt.append(self.gt)
+            ref_img.append(self.ref_input)
+            if use_pbar:
+                pbar.update(1)
+                pbar.set_description(f'Test {img_name:>20}')
+        if use_pbar:
+            pbar.close()
+
+        if self.train_target == 'score':
+            pred = torch.cat(pred, dim=0).squeeze(1).cpu().numpy()
+            gt = torch.cat(gt, dim=0).squeeze(1).cpu().numpy()
+            if with_metrics:
+                # calculate all metrics
+                for name, opt_ in self.opt['val']['metrics'].items():
+                    self.metric_results[name] = calculate_metric([pred, gt], opt_)
+        
+        if self.train_target == 'image':
+            if with_metrics:
+                # Prepare a list for each metric to collect values from all images
+                # Assume calculate_metric accepts [pred_img, ref_img] and returns a scalar
+                per_image_results = {name: [] for name in self.opt['val']['metrics'].keys()}
+
+                # Convert pred, ref_img to numpy arrays (if still on GPU Tensor)
+                for p, g in zip(pred, ref_img):
+                    # Adjust according to your data format: here example first squeeze batch dimension
+                    if isinstance(p, torch.Tensor):
+                        p_img = p.squeeze(0).cpu().numpy()
+                    else:
+                        p_img = p
+                    if isinstance(g, torch.Tensor):
+                        g_img = g.squeeze(0).cpu().numpy()
+                    else:
+                        g_img = g
+
+                    p_img = np.clip(p_img * 255.0, 0, 255).astype(np.uint8)
+                    g_img = np.clip(g_img * 255.0, 0, 255).astype(np.uint8)
+
+                    # Calculate for each metric per image
+                    for name, opt_ in self.opt['val']['metrics'].items():
+                        if self.opt['network']['only_train_y']:
+                            val = calculate_metric([p_img[0:1, :, :], g_img[0:1, :, :]], opt_)
+                        else:
+                            val = calculate_metric([p_img, g_img], opt_)
+                        per_image_results[name].append(val)
+
+                # Take mean of each metric list to get final result
+                for name, vals in per_image_results.items():
+                    self.metric_results[name] = float(sum(vals) / len(vals))
+            else:
+                # compute validation loss over all batches
+                for out, ref in zip(pred, ref_img):
+                    batch_loss = 0.0
+                    out_jpeg = self.jpeger_val(out, quality=80)
+                    if self.opt['network']['only_train_y']:
+                        out = out[:, 0:1, :, :]
+                        out_jpeg = out_jpeg[:, 0:1, :, :]
+                        ref = ref[:, 0:1, :, :]
+
+                    if self.cri_fidelity:
+                        for fn in self.cri_fidelity:
+                            batch_loss += fn(out_jpeg, ref).item()
+                    if self.cri_rate:
+                        for fn in self.cri_rate:
+                            batch_loss += fn(out, ref).item()
+                    if self.cri_perceptual:
+                        for fn in self.cri_perceptual:
+                            batch_loss += fn(out_jpeg, ref).item()
+                    val_loss_total += batch_loss
+                    val_batches += 1
+
+                # after looping, check for best‐loss
+                if val_batches > 0:
+                    mean_val_loss = val_loss_total / val_batches
+                    if mean_val_loss < self.best_val_loss:
+                        self.best_val_loss = mean_val_loss
+                        self.copy_model(self.net, self.net_best)
+                        self.save_network(self.net_best, 'net_best')
+                        get_root_logger().info(
+                            f'New best val loss: {mean_val_loss:.6f} @ iter {current_iter}, saved net_best.'
+                        )
+                                    
+
+        if with_metrics:
+            if self.key_metric is not None:
+                # If the best metric is updated, update and save best model
+                to_update = self._update_best_metric_result(dataset_name, self.key_metric,
+                                                            self.metric_results[self.key_metric], current_iter)
+
+                if to_update:
+                    for name, opt_ in self.opt['val']['metrics'].items():
+                        self._update_metric_result(dataset_name, name, self.metric_results[name], current_iter)
+                    self.copy_model(self.net, self.net_best)
+                    self.save_network(self.net_best, 'net_best')
+            else:
+                # update each metric separately
+                updated = []
+                for name, opt_ in self.opt['val']['metrics'].items():
+                    tmp_updated = self._update_best_metric_result(dataset_name, name, self.metric_results[name],
+                                                                  current_iter)
+                    updated.append(tmp_updated)
+                # save best model if any metric is updated
+                if sum(updated):
+                    self.copy_model(self.net, self.net_best)
+                    self.save_network(self.net_best, 'net_best')
+
+            self._log_validation_metric_values(current_iter, dataset_name, tb_logger)
+
+    def _log_validation_metric_values(self, current_iter, dataset_name, tb_logger):
+        log_str = f'Validation {dataset_name}\n'
+        for metric, value in self.metric_results.items():
+            log_str += f'\t # {metric}: {value:.4f}'
+            if hasattr(self, 'best_metric_results'):
+                log_str += (f'\tBest: {self.best_metric_results[dataset_name][metric]["val"]:.4f} @ '
+                            f'{self.best_metric_results[dataset_name][metric]["iter"]} iter')
+            log_str += '\n'
+
+        logger = get_root_logger()
+        logger.info(log_str)
+        if tb_logger:
+            for metric, value in self.metric_results.items():
+                tb_logger.add_scalar(f'val_metrics/{dataset_name}/{metric}', value, current_iter)
+
+    def save(self, epoch, current_iter, save_net_label='net'):
+        self.save_network(self.net, save_net_label, current_iter)
+        self.save_training_state(epoch, current_iter)

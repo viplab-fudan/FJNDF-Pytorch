@@ -1,0 +1,21 @@
+name: x264
+
+encoder_param:
+    --preset: veryslow
+    --keyint: 200 # greater than 100 to ensure only one I frame
+    --fps: 25 # set by encode.py
+    --frames: 100 # set by encode.py
+    --qp: 22 # set by encde.py
+    --bitrate: 7776 # set by encode.py
+    --crf: 23 # set by encode.py
+    -o: ../../dataset/tmp/svac_beihaihumian_80_x264.264 # set by encode.py
+    --dump-yuv: ../../dataset/tmp/svac_beihaihumian_80_x264_enc.yuv # set by encode.py
+    --log-level: full
+    --bframes: 0
+    --rc-lookahead: 0
+    --ref: 1
+
+video_param:
+    --input: ../../dataset/ori/svac/R_1920x1080_beihaihumian_50fps_500.yuv # set by encode.py
+    --input-res: 1920x1080  # set by encode.py
+    --input-depth: 8

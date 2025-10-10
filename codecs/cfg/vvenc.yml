@@ -1,0 +1,20 @@
+name: vvenc
+
+encoder_param:
+    -c: ../source/vvenc/cfg/experimental/lowdelay_fast.cfg
+    --IntraPeriod: 200 # greater than 100 to ensure only one I frame
+    --FrameRate: 25
+    --FramesToBeEncoded: 100 # set by encode.py
+    --QP: 22 # set by encode.py
+    --TargetBitrate: 7776 # set by encode.py
+    --NumPasses: 1
+    --ReconFile: ../../dataset/tmp/svac_beihaihumian_80_vvenc_enc.yuv # set by encode.py
+    --InternalBitDepth: 8 # set by encode.py
+    --OutputBitDepth: 8 # set by encode.py
+    --BitstreamFile: ../../dataset/tmp/svac_beihaihumian_80_vvenc.bin # set by encode.py
+
+video_param:
+    --InputFile: ../../dataset/ori/svac/R_1920x1080_beihaihumian_50fps_500.yuv # set by encode.py
+    --SourceWidth: 1920 # set by encode.py
+    --SourceHeight: 1080  # set by encode.py
+    --InputBitDepth: 8 # set by encode.py

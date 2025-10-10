@@ -1,0 +1,10 @@
+koniq10k:
+  name: KonIQ10k
+  type: GeneralNRDataset
+  dataroot_in: './datasets/koniq10k/512x384'
+  meta_info_file: './datasets/meta_info/meta_info_KonIQ10kDataset.csv'
+  split_index: 'official_split'
+  phase: 'test'
+  jnd_range: [1, 100]
+  lower_better: false
+  jnd_normalize: false

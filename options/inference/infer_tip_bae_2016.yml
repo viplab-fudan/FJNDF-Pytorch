@@ -1,0 +1,44 @@
+name: tip_bae_2016
+type: FrequencyJNDModel
+
+transform: dct2d_8x8
+block_sz: 8
+
+channel: 'Y'
+normalized: False
+
+target: 2
+seed: 123
+
+precision: fp32
+
+effect:
+  - type: CSF
+    model: TIPbae2016
+    weight: 1.0
+    params:
+      s: 1.0
+      dct_size: 8
+      r_vh: 1.75
+      screen_h: 1080
+
+  - type: LA
+    model: TIPbae2016
+    weight: 1.0
+    params:
+      threshold_split: 0.3
+      dct_size: 8
+      r_vh: 1.75
+      screen_h: 1080
+
+  - type: CM
+    model: TIPbae2016
+    weight: 1.0
+    params:
+      threshold_split: 0.2
+      dct_size: 8
+      r_vh: 1.75
+      screen_h: 1080
+
+fusion:
+  method: product

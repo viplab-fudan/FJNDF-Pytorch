@@ -1,0 +1,10 @@
+name: jpeg
+
+encoder_param:
+    --quality: 23 # set by encode.py
+    --optimize: 1
+    --output: ../../dataset/tmp/svac_beihaihumian_23_jpeg.jpg # set by encode.py
+
+video_param:
+    --input: ../../dataset/ori/svac/R_1920x1080_beihaihumian_50fps_500.yuv # set by encode.py
+    --input-res: 1920x1080  # set by encode.py
