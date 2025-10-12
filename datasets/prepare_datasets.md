@@ -164,15 +164,15 @@ For training purposes, we provide our custom divkon_2k dataset. This dataset is 
 * **Archive name:** `divkon_2k_yuv.tar.gz`
 * **Download (Baidu Netdisk Super Member v6):**
 
-  * **URL:** [https://pan.baidu.com/s/1OAvjt78VcGEdK_xCvTaiLg?pwd=1224 ](https://pan.baidu.com/s/1OAvjt78VcGEdK_xCvTaiLg?pwd=1224)
+  * **URL:** [https://pan.baidu.com/s/1cOr8u1ZVCUcbmr4eGwzdVg?pwd=1224](https://pan.baidu.com/s/1cOr8u1ZVCUcbmr4eGwzdVg?pwd=1224)
   * **Extraction code:** `1224`
 
 The dataset archive contains multiple versions of the images, which are suitable for various supervised learning strategies:
 
 > **Note**: If you use any of the above open datasets, please cite the corresponding sources: DIV2K [5], KonJND-1K [6].
 
-* ori: Contains the original, high-quality YUV files.
-* tob_kang_2023_filter_5: Contains YUV files processed with a specific JND (Just Noticeable Difference) filter, which can serve as a reference or target for training JND models.
+* ori: Contains the original YUV files.
+* tip_bae_2016_filter_4: Contains YUV files processed with a specific JND-Guided pre-filter, which can serve as a reference method for training networks.
 
 ### Extraction Example
 ```bash
@@ -188,7 +188,7 @@ tar -xzf divkon_2k_yuv.tar.gz
 tree -d
 # .
 # ├── ori
-# └── tob_kang_2023_filter_5
+# └── tip_bae_2016_filter_4
 
 cd ori
 # Listing files

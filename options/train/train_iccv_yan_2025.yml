@@ -13,7 +13,7 @@ datasets:
     type: GeneralFRDataset
 
     dataroot_in: ./datasets/divkon_2k_yuv/ori
-    dataroot_ref: ./datasets/divkon_2k_yuv/tob_kang_2023_filter_5
+    dataroot_ref: ./datasets/divkon_2k_yuv/tip_bae_2016_filter_4
     meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
     split_file: ./datasets/info/train/divkon_2k_yuv_5_splits.pkl
     split_index: 1
@@ -37,7 +37,7 @@ datasets:
     type: GeneralFRDataset
 
     dataroot_in: ./datasets/divkon_2k_yuv/ori
-    dataroot_ref: ./datasets/divkon_2k_yuv/tob_kang_2023_filter_5
+    dataroot_ref: ./datasets/divkon_2k_yuv/tip_bae_2016_filter_4
     meta_info_file: ./datasets/info/train/divkon_2k_yuv_meta_info.csv
     split_file: ./datasets/info/train/divkon_2k_yuv_5_splits.pkl
     split_index: 1
