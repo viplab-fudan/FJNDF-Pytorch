@@ -20,7 +20,7 @@ The architecture of our FJNDF-Pytorch framework is illustrated in the figure abo
 
 ## 🚩 Updates/Changelog
 
-💥 **Oct, 2025**: Open-sourced the FJNDF-Pytorch benchmark and integrated our lightweight pre-filter network from our submission to ISCAS 2026.
+💥 **Oct, 2025**: Open-sourced the FJNDF-Pytorch benchmark and integrated our lightweight pre-filter network, related paper is available at https://arxiv.org/abs/2510.10648.
 
 ---
 
@@ -300,7 +300,17 @@ If you find our codes helpful to your research, please consider to use the follo
   title={{FJNDF-PyTorch}: Frequency-Domain JND-Guided Pre-Filter Benchmark},
   author={Chenlong He},
   year={2025},
-  howpublished = "[Online]. Available: \url{https://github.com/NanUshio/FJNDF-Pytorch}"
+  howpublished = "[Online]. Available: \url{https://github.com/viplab-fudan/FJNDF-Pytorch}"
+}
+
+@misc{he2025jndguided,
+      title={JND-Guided Light-Weight Neural Pre-Filter for Perceptual Image Coding}, 
+      author={Chenlong He and Zijing Dong and Min Li and Zhijian Hao and Leilei Huang and Xiaoyang Zeng and Yibo Fan},
+      year={2025},
+      eprint={2510.10648},
+      archivePrefix={arXiv},
+      primaryClass={eess.IV},
+      doi={10.48550/arXiv.2510.10648}
 }
 ```
 
