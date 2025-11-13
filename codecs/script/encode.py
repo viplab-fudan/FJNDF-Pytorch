@@ -312,26 +312,74 @@ def calc_metric(metric, orig_yuv, dec_yuv, width, height, fps, encFormat, encNum
         pattern = r"All:([0-9]+\.[0-9]+)"
 
     elif metric == "vmaf":
+        xml_file = os.path.splitext(dec_yuv)[0] + "_vmaf.xml"
         cmd = [
-            "ffmpeg", "-y",
-            "-s", f"{width}x{height}", "-f", "rawvideo", "-pix_fmt", encFormat, "-i", dec_yuv, 
-            "-s", f"{width}x{height}", "-f", "rawvideo", "-pix_fmt", encFormat, "-i", orig_yuv, 
-            "-frames:v", encNum,
-            "-lavfi", "libvmaf=model='path=/usr/share/model/vmaf_v0.6.1.json':log_fmt=json",
-            "-f", "null", "-"
+            "../bin/vmaf",
+            "-r", orig_yuv,
+            "-d", dec_yuv,
+            "-w", width,
+            "-h", height,
+            "-p", "420",
+            "-b", "8",
+            "--frame_cnt", encNum,
+            "-m", "path=../source/vmaf/model/vmaf_v0.6.1.json",
+            "-o", xml_file,
+            "-q",
         ]
-        pattern = r"VMAF score\s*:\s*([0-9]+\.[0-9]+)"
+
+        score = None
+        try:
+            subprocess.run(cmd, check=True)
+            with open(xml_file, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('<metric') and 'name="vmaf"' in line:
+                        m = re.search(r'mean="([^"]+)"', line)
+                        if m:
+                            score = float(m.group(1))
+                        break
+        except subprocess.CalledProcessError:
+            print(f"[ERROR] vmaf calculation failed for {dec_yuv}")
+
+        # Delete temporary files
+        os.remove(xml_file)
+
+        return score
 
     elif metric == "vmaf_neg":
+        xml_file = os.path.splitext(dec_yuv)[0] + "_vmaf_neg.xml"
         cmd = [
-            "ffmpeg", "-y",
-            "-s", f"{width}x{height}", "-f", "rawvideo", "-pix_fmt", encFormat, "-i", dec_yuv, 
-            "-s", f"{width}x{height}", "-f", "rawvideo", "-pix_fmt", encFormat, "-i", orig_yuv, 
-            "-frames:v", encNum,
-            "-lavfi", "libvmaf=model='path=/usr/share/model/vmaf_v0.6.1neg.json':log_fmt=json",
-            "-f", "null", "-"
+            "../bin/vmaf",
+            "-r", orig_yuv,
+            "-d", dec_yuv,
+            "-w", width,
+            "-h", height,
+            "-p", "420",
+            "-b", "8",
+            "--frame_cnt", encNum,
+            "-m", "path=../source/vmaf/model/vmaf_v0.6.1neg.json",
+            "-o", xml_file,
+            "-q",
         ]
-        pattern = r"VMAF score\s*:\s*([0-9]+\.[0-9]+)"
+
+        score = None
+        try:
+            subprocess.run(cmd, check=True)
+            with open(xml_file, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('<metric') and 'name="vmaf"' in line:
+                        m = re.search(r'mean="([^"]+)"', line)
+                        if m:
+                            score = float(m.group(1))
+                        break
+        except subprocess.CalledProcessError:
+            print(f"[ERROR] vmaf_neg calculation failed for {dec_yuv}")
+
+        # Delete temporary files
+        os.remove(xml_file)
+
+        return score
 
     elif metric == "psnr_hvsm":
         csv_file = os.path.splitext(dec_yuv)[0]

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# -------- Configuration --------
+# ———————— Configuration ————————
 # Dataset group list (outermost loop)
 DS_GROUP_LIST=(
   hevc_sdr_ctc

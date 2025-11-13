@@ -9,6 +9,7 @@ DIR_AOM     = ./source/aom
 DIR_VVENC   = ./source/vvenc
 DIR_VVDEC   = ./source/vvdec
 DIR_VQMT    = ./source/vqmt
+DIR_VMAF    = ./source/vmaf
 
 NAME_ENC_X264 = x264
 NAME_ENC_X265 = x265
@@ -17,6 +18,7 @@ NAME_ENC_VVENC = vvenc
 NAME_DEC_AOM  = aomdec
 NAME_DEC_VVDEC = vvdec
 NAME_VQMT = vqmt
+NAME_VMAF = vmaf
 
 #--- LOCAL -----------------------------
 
@@ -34,6 +36,7 @@ default:
 	@	echo "    	download_vvenc  :   download vvenc encoder                               "
 	@	echo "    	download_vvdec  :   download vvdec decoder                               "
 	@	echo "    	download_vqmt   :   download vqmt  			                             "
+	@	echo "    	download_vmaf   :   download vmaf 			                             "
 	@	echo "    update:    build all en/decoders bianry file under bin dir                 "
 	@	echo "    	update_x264   :   build x264 encoder                                     "
 	@	echo "		update_x265   :   build x265 encoder                                     "
@@ -41,6 +44,7 @@ default:
 	@	echo "    	update_vvenc  :   build vvenc encoder                                    "
 	@	echo "    	update_vvdec  :   build vvdec decoder                                    "
 	@	echo "    	update_vqmt   :   build vqmt                                             "
+	@	echo "    	update_vmaf   :   build vmaf                                             "
 	@	echo "    check:    check version of all encoders under codec dir                    "
 	@	echo "    	check_x264   :   check_version of x264 encoder                           "
 	@	echo "    	check_x265   :   check_version of x265 encoder                           "
@@ -48,6 +52,7 @@ default:
 	@	echo "    	check_vvenc  :   check_version of vvenc encoder                          "
 	@	echo "    	check_vvdec  :   check_version of vvdec decoder                          "
 	@	echo "    	check_vqmt   :   check_version of vqmt                                   "
+	@	echo "    	check_vmaf   :   check_version of vmaf                                   "
 	@	echo "                                                                               "
 	@	echo "                                                                               "
 
@@ -76,6 +81,9 @@ download_vvdec:
 download_vqmt:
 	@	git clone https://github.com/rolinh/VQMT.git $(DIR_VQMT)
 
+download_vmaf:
+	@	git clone https://github.com/Netflix/vmaf.git $(DIR_VMAF)
+
 download:
 	@	make download_x264
 	@	make download_x265
@@ -83,6 +91,7 @@ download:
 	@	make download_vvenc
 	@	make download_vvdec
 	@	make download_vqmt
+	@	make download_vmaf
 
 check_x264:
 	@	cd $(DIR_BINARY) ;\
@@ -109,6 +118,10 @@ check_vqmt:
 	@	cd $(DIR_BINARY) ;\
 		./$(NAME_VQMT) -v
 
+check_vmaf:
+	@	cd $(DIR_BINARY) ;\
+		./$(NAME_VMAF) -v
+
 check:
 	@	make check_x264
 	@	make check_x265
@@ -116,13 +129,14 @@ check:
 	@	make check_vvenc
 	@   make check_vvdec
 	@	make check_vqmt
+	@	make check_vmaf
 
 update_x264:
 	@   mkdir -p $(DIR_BINARY)
 	@	cd $(DIR_X264) ;\
 		./configure --enable-shared --enable-static
 	@	cd $(DIR_X264) ;\
-		make -j8 ;\
+		make -j8
 	@	cp $(DIR_X264)/$(NAME_ENC_X264) $(DIR_BINARY)/$(NAME_ENC_X264) ;\
 		chmod +x $(DIR_BINARY)/$(NAME_ENC_X264)
 	@	make check_x264
@@ -132,7 +146,7 @@ update_x265:
 	@	cd $(DIR_X265)/build/linux ;\
 		cmake -G "Unix Makefiles" ../../source
 	@	cd $(DIR_X265)/build/linux ;\
-		make -j8 ;\
+		make -j8
 	@	cp $(DIR_X265)/build/linux/$(NAME_ENC_X265) $(DIR_BINARY)/$(NAME_ENC_X265) ;\
 		chmod +x $(DIR_BINARY)/$(NAME_ENC_X265)
 	@	make check_x265
@@ -143,7 +157,7 @@ update_aom:
 	    make build
 	@	cd $(DIR_AOM)/build ;\
 		cmake -DCMAKE_BUILD_TYPE=Release .. ;\
-		make -j8 ;\
+		make -j8
 	@	cp $(DIR_AOM)/build/$(NAME_ENC_AOM) $(DIR_BINARY)/$(NAME_ENC_AOM)
 		cp $(DIR_AOM)/build/$(NAME_DEC_AOM) $(DIR_BINARY)/$(NAME_DEC_AOM)
 		chmod +x $(DIR_BINARY)/$(NAME_ENC_AOM)
@@ -157,7 +171,7 @@ update_vvenc:
 	@	cd $(DIR_VVENC)/build/ ;\
 		cmake ..
 	@	cd $(DIR_VVENC)/build/ ;\
-		make -j8 ;\
+		make -j8
 	@	cp $(DIR_VVENC)/bin/release-static/vvencFFapp $(DIR_BINARY)/$(NAME_ENC_VVENC) ;\
 		chmod +x $(DIR_BINARY)/$(NAME_ENC_VVENC)
 	@	make check_vvenc
@@ -168,7 +182,7 @@ update_vvdec:
 	    mkdir -p build
 	@	cd $(DIR_VVDEC)/build/ ;\
 		cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=1 -DVVDEC_INSTALL_VVDECAPP=ON .. ;\
-		make -j8 ;\
+		make -j8
 	@	cp $(DIR_VVDEC)/bin/release-shared/vvdecapp $(DIR_BINARY)/$(NAME_DEC_VVDEC) ;\
 		chmod +x $(DIR_BINARY)/$(NAME_DEC_VVDEC)
 	@	make check_vvdec
@@ -181,6 +195,15 @@ update_vqmt:
 		chmod +x $(DIR_BINARY)/$(NAME_VQMT)
 	@	make check_vqmt
 
+update_vmaf:
+	@   mkdir -p $(DIR_BINARY)
+	@	cd $(DIR_VMAF)/libvmaf ;\
+		meson setup build --buildtype release ;\
+		ninja -C build
+	@	cp $(DIR_VMAF)/libvmaf/build/tools/$(NAME_VMAF) $(DIR_BINARY)/$(NAME_VMAF) ;\
+		chmod +x $(DIR_BINARY)/$(NAME_VMAF)
+	@	make check_vmaf
+
 update:
 	@   mkdir -p $(DIR_BINARY)
 	@   make update_x264
@@ -189,3 +212,4 @@ update:
 	@	make update_vvenc
 	@   make update_vvdec
 	@	make update_vqmt
+	@	make update_vmaf
