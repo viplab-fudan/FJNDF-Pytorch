@@ -1,4 +1,5 @@
 import torch
+import inspect
 
 from collections import OrderedDict
 from pyjnd.default_model_configs import DEFAULT_CONFIGS
@@ -80,7 +81,7 @@ class InferenceModel(torch.nn.Module):
             assert isinstance(x, torch.Tensor), 'Input must be a torch.Tensor'
             network_type = DEFAULT_CONFIGS[self.metric_name]['metric_opts']['type']
 
-            if network_type in ['FrequencyJNDModel', 'TopDownJNDModel']:
+            if network_type in ['FrequencyJNDModel', 'SpatialJNDModel']:
                 if x.dim() == 4:
                     x = x.squeeze(0)
                 assert x.dim() == 3, f'For {network_type!s}, Input must be 3D tensor (C, H, W)'
@@ -117,6 +118,17 @@ class InferenceModel(torch.nn.Module):
             # elif self.metric_mode == 'NR':
             if self.precision == 'fp16':
                 img = img.half()
-            output = self.net(img.to(device), **kwargs)
-
+            
+            # Check if self.net.forward accepts kwargs
+            sig = inspect.signature(self.net.forward)
+            params = sig.parameters
+            has_var_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+            
+            if has_var_kwargs:
+                output = self.net(img.to(device), **kwargs)
+            else:
+                # Filter kwargs to only those accepted by the forward method
+                valid_kwargs = {k: v for k, v in kwargs.items() if k in params}
+                output = self.net(img.to(device), **valid_kwargs)
+        
         return output

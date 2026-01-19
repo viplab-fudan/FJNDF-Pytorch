@@ -7,7 +7,6 @@ block_sz: 8
 channel: 'Y'
 normalized: False
 
-target: 2
 seed: 123
 
 precision: fp32

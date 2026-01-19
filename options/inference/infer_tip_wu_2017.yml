@@ -1,0 +1,25 @@
+name: tip_wu_2017
+type: SpatialJNDModel
+
+channel: 'Y'
+normalized: False
+
+seed: 123 # only used when target is set to 0: random inject
+
+precision: fp32
+
+effect:
+  - type: LA
+    model: TIPwu2017
+    weight: 1.0
+
+  - type: CM
+    model: TIPwu2017
+    weight: 1.0
+
+  - type: PM
+    model: TIPwu2017
+    weight: 1.0
+
+fusion:
+  method: namm_tip_wu_2017

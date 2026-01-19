@@ -1,0 +1,25 @@
+name: tmm_wu_2013
+type: SpatialJNDModel
+
+channel: 'Y'
+normalized: False
+
+seed: 123 # only used when target is set to 0: random inject
+
+precision: fp32
+
+effect:
+  - type: LA
+    model: TMMwu2013
+    weight: 1.0
+
+  - type: CM
+    model: TMMwu2013
+    weight: 1.0
+
+  - type: PM
+    model: TMMwu2013
+    weight: 1.0
+
+fusion:
+  method: namm_tmm_wu_2013

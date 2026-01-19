@@ -90,7 +90,7 @@ def filter_video(task):
     Perform multi-frame JND filtering on a single video file (YUV/Y4M) and merge output
     task = (file_path, w, h, fmt, bd, frame_num, cfg_path, output_dir, platform, gpu_id)
     """
-    file_path, w, h, fmt, bd, frame_num, cfg_path, output_dir, platform, gpu_id = task
+    file_path, w, h, fmt, bd, frame_num, cfg_path, target, output_dir, platform, gpu_id = task
     suffix = Path(file_path).suffix.lower()
 
     # For .y4m, override fmt, bd read from CSV; parse real header info
@@ -135,7 +135,7 @@ def filter_video(task):
             yuv = F.pad(yuv, (0, pad_w, 0, pad_h), mode='replicate')
 
         # forward
-        out = model.forward(yuv.unsqueeze(0) if yuv.dim()==3 else yuv)
+        out = model.forward(yuv.unsqueeze(0) if yuv.dim()==3 else yuv, target=target)
         if out.dim()==4:
             out = out.squeeze(0)
         # crop
@@ -209,7 +209,7 @@ def main():
     if args.platform == 'cpu':
         for fp, w, h, fmt, bd in videos:
             tasks.append((fp, w, h, fmt, bd,
-                          args.frame_num, args.cfg, args.output,
+                          args.frame_num, args.cfg, args.target, args.output,
                           'cpu', None))
         with ProcessPoolExecutor(max_workers=args.cores) as exe:
             exe.map(filter_video, tasks)
@@ -218,7 +218,7 @@ def main():
         for i, (fp, w, h, fmt, bd) in enumerate(videos):
             gid = gpus[i % len(gpus)]
             tasks.append((fp, w, h, fmt, bd,
-                          args.frame_num, args.cfg, args.output,
+                          args.frame_num, args.cfg, args.target, args.output,
                           'gpu', gid))
         with ProcessPoolExecutor(max_workers=len(gpus)) as exe:
             exe.map(filter_video, tasks)

@@ -1,0 +1,29 @@
+name: tcsvt_chou_1995
+type: SpatialJNDModel
+
+channel: 'Y'
+normalized: False
+
+seed: 123
+
+precision: fp32
+
+effect:
+  - type: LA
+    model: TCSVTchou1995
+    weight: 1.0
+    params:
+      T0: 17
+      slope: 0.0234375 # 3.0/128.0
+      bg_threshold: 127
+  - type: CM
+    model: TCSVTchou1995
+    weight: 1.0
+    params:
+      intercept: 0.5
+      bg_coeff: 0.01
+      a_coeff: 0.0001
+      constant: 0.115
+
+fusion:
+  method: max

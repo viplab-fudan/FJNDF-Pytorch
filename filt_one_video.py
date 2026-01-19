@@ -71,7 +71,7 @@ def filter_frame(task):
     if pad_h or pad_w:
         yuv = F.pad(yuv, (0, pad_w, 0, pad_h), mode='replicate')
 
-    filt = model.forward(yuv)
+    filt = model.forward(yuv, target=target)
     #!!! hack code: as learning based method would generate tensor with shape (B, C, H, W)    
     if filt.dim() == 4:
         filt = filt.squeeze(0)

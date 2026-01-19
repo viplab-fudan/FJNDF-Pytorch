@@ -1,6 +1,31 @@
 from collections import OrderedDict
 
 DEFAULT_CONFIGS = OrderedDict({
+    # ====================Spatial-Domain=========================================
+    'general_spatial_jnd': {
+        'metric_opts': {
+            'type': 'SpatialJNDModel',
+            'effect_yml_path': './options/inference/infer_general_spatial_jnd.yml',
+        }
+    },
+    'tcsvt_chou_1995': {
+        'metric_opts': {
+            'type': 'SpatialJNDModel',
+            'effect_yml_path': './options/inference/infer_tcsvt_chou_1995.yml',
+        }
+    },
+    'tmm_wu_2013': {
+        'metric_opts': {
+            'type': 'SpatialJNDModel',
+            'effect_yml_path': './options/inference/infer_tmm_wu_2013.yml',
+        }
+    },
+    'tip_wu_2017': {
+        'metric_opts': {
+            'type': 'SpatialJNDModel',
+            'effect_yml_path': './options/inference/infer_tip_wu_2017.yml',
+        }
+    },
     # ====================Frequency-Domain=======================================
     'general_frequency_jnd': {
         'metric_opts': {

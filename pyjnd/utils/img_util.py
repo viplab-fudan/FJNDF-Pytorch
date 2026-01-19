@@ -3,6 +3,7 @@ import math
 import numpy as np
 import os
 import torch
+import torch.nn.functional as F
 import io
 import torchvision.transforms.functional as TF
 import re
@@ -644,14 +645,17 @@ def inject_jnd(
         channels : str = 'YUV',
         max_val  : Optional[float] = None,
         seed     : Optional[int]   = None,
-        target   : Optional[int] = 0,               # ← New: 0=subjective quality, 1=JPEG optimization
-        block_sz : Optional[int] = 8                # ← JPEG default block size, can be changed
+        target   : Optional[int] = 0,
+        block_sz : Optional[int] = 8
 ) -> torch.Tensor:
     """
     Inject / smooth pixels by JND.
 
-    target = 0 : add random ±T_JND noise  (subjective-quality evaluation)
-    target = 1 : block-mean smoothing per Eq.(16) (JPEG bit-rate reduction)
+    target = 0 : add random ±T_JND noise
+    target = 1 : block-mean smoothing
+    target = 2 : JND-bounded Gaussian smoothing
+    target = 3 : JND-guided adaptive Wiener filtering
+    target = 4 : JND-bounded Guided filtering (edge-preserving)
     """
 
     # 1) reproducible seed
@@ -691,7 +695,7 @@ def inject_jnd(
         result = original + noise
 
     # ------------------------------------------------------------------
-    # target = 1  ——  JPEG optimization: Equation (16) block mean smoothing
+    # target = 1  ——  Block mean smoothing
     # ------------------------------------------------------------------
     elif target == 1:
         # Calculate block mean F̅_B; do same operation for selected channels
@@ -719,8 +723,103 @@ def inject_jnd(
         result[cond_mid] = F_B[cond_mid]                      # Set block mean
         result[cond_gt]  = original[cond_gt]  - T[cond_gt]
 
+    # ------------------------------------------------------------------
+    # target = 2  ——  JND-Bounded Gaussian Smoothing
+    # ------------------------------------------------------------------
+    elif target == 2:
+        # Gaussian blur parameters
+        sigma = 1.5
+        k_sz = 5
+        
+        # Apply Gaussian Blur
+        blurred = TF.gaussian_blur(original, kernel_size=[k_sz, k_sz], sigma=[sigma])
+        
+        # Determine the "noise" (difference)
+        diff = original - blurred
+        
+        # Clamp the difference to be within JND range
+        # This ensures we only remove high-frequency details that are below JND
+        diff_clamped = diff.clamp(-jnd_map, jnd_map)
+        
+        # Apply only to selected channels
+        diff_clamped = diff_clamped * mask
+        
+        result = original - diff_clamped
+
+    # ------------------------------------------------------------------
+    # target = 3  ——  Adaptive Wiener Filtering
+    # ------------------------------------------------------------------
+    elif target == 3:
+        # Local mean and variance using Average Pooling
+        k = 5
+        pad = k // 2
+        
+        def box_filter(x, k, p):
+            x_in = x.unsqueeze(0)
+            x_out = F.avg_pool2d(x_in, kernel_size=k, stride=1, padding=p)
+            return x_out.squeeze(0)
+
+        mu = box_filter(original, k, pad)
+        mu2 = box_filter(original**2, k, pad)
+        var = (mu2 - mu**2).clamp(min=0.0)
+        
+        # Assume local noise variance limit is JND^2
+        noise_var = jnd_map**2
+        
+        # Wiener filter formula: result = mu + (var - noise_var)/var * (original - mu)
+        weight = (var - noise_var).clamp(min=0.0) / (var + 1e-5)
+        
+        smoothed = mu + weight * (original - mu)
+        
+        # Strictly bound the change by JND
+        diff = smoothed - original
+        diff = diff.clamp(-jnd_map, jnd_map)
+        
+        result = original + diff * mask
+
+    # ------------------------------------------------------------------
+    # target = 4  ——  Guided Filtering (Edge Preserving)
+    # ------------------------------------------------------------------
+    elif target == 4:
+        # Radius for guided filter
+        r = block_sz // 2 if block_sz else 2
+        eps = 1e-2
+        
+        def box_filter_g(x, r):
+            k = 2*r + 1
+            x_in = x.unsqueeze(0)
+            # Use reflection padding
+            x_pad = F.pad(x_in, (r, r, r, r), mode='reflect')
+            x_out = F.avg_pool2d(x_pad, kernel_size=k, stride=1, padding=0)
+            return x_out.squeeze(0)
+            
+        I = original
+        p = original
+        
+        mean_I = box_filter_g(I, r)
+        mean_p = box_filter_g(p, r)
+        mean_Ip = box_filter_g(I*p, r)
+        mean_II = box_filter_g(I*I, r)
+        
+        cov_Ip = mean_Ip - mean_I * mean_p
+        var_I = mean_II - mean_I * mean_I
+        
+        a = cov_Ip / (var_I + eps)
+        b = mean_p - a * mean_I
+        
+        mean_a = box_filter_g(a, r)
+        mean_b = box_filter_g(b, r)
+        
+        q = mean_a * I + mean_b
+        
+        # JND Bounding
+        diff = q - original
+        diff = diff.clamp(-jnd_map, jnd_map)
+        
+        result = original + diff * mask
+
     else:
-        raise ValueError("target must be 0 (quality) or 1 (JPEG)")
+        raise ValueError("target must be 0, 1, 2, 3 or 4")
 
     # 4) optional clamp
     if max_val is not None:

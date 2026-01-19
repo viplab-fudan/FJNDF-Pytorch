@@ -32,7 +32,7 @@ from pyjnd.archs.jnd_util import fuse_jnd_maps
 class FrequencyJNDModel(nn.Module):
     """
     Base model for frequency-domain JND, with a structure and logic
-    almost identical to the `SpatialJNDModel`.
+    almost identical to the `FrequencyJNDModel`.
     """
     def __init__(self,
                  effect_yml_path: str,
@@ -100,7 +100,6 @@ class FrequencyJNDModel(nn.Module):
         # Load other parameter settings
         self.channels = cfg['channel']
         self.seed = cfg['seed']
-        self.target = cfg['target']
         self.block_sz = cfg['block_sz']
 
     def compute(self, yuv: torch.Tensor) -> torch.Tensor:
@@ -150,7 +149,6 @@ class FrequencyJNDModel(nn.Module):
 
         channels = self.channels
         seed     = self.seed
-        target   = self.target
         block_sz = self.block_sz
         
         # Set random seed only for target=0 to ensure reproducibility
@@ -307,10 +305,7 @@ class FrequencyJNDModel(nn.Module):
             out[c] = rec
         return out
 
-    def forward(
-        self,
-        yuv: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, yuv: torch.Tensor,  **kwargs) -> torch.Tensor:
         """
         Default flow: compute JND -> inject JND -> return the injected image.
         """
@@ -318,7 +313,7 @@ class FrequencyJNDModel(nn.Module):
 
         channels = self.channels
         seed = self.seed
-        target = self.target
+        target = kwargs.pop('target', 0)
         block_sz = self.block_sz
 
         contaminated = self.inject(yuv, freq_jnd_map, 
