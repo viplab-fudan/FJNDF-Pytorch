@@ -303,14 +303,11 @@ If you find our codes helpful to your research, please consider to use the follo
   howpublished = "[Online]. Available: \url{https://github.com/viplab-fudan/FJNDF-Pytorch}"
 }
 
-@misc{he2025jndguided,
-      title={JND-Guided Light-Weight Neural Pre-Filter for Perceptual Image Coding}, 
-      author={Chenlong He and Zijing Dong and Min Li and Zhijian Hao and Leilei Huang and Xiaoyang Zeng and Yibo Fan},
-      year={2025},
-      eprint={2510.10648},
-      archivePrefix={arXiv},
-      primaryClass={eess.IV},
-      doi={10.48550/arXiv.2510.10648}
+@article{he2025jnd,
+  title={JND-Guided Light-Weight Neural Pre-Filter for Perceptual Image Coding},
+  author={He, Chenlong and Hao, Zhijian and Huang, Leilei and Zeng, Xiaoyang and Fan, Yibo},
+  journal={arXiv preprint arXiv:2510.10648},
+  year={2025}
 }
 ```
 
